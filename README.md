@@ -119,8 +119,8 @@ memory.search("weather forecast", k=5, return_details=True)
 ```
 
 **Sample Output:**
-```
-[
+
+```json
   {
     "messages": [
       {
@@ -135,7 +135,6 @@ memory.search("weather forecast", k=5, return_details=True)
       }
     ]
   }
-]
 ```
 
 #### Get Recent Memories
@@ -150,11 +149,9 @@ memory.get_recent(k=10)
 memory.get_recent(k=10, return_details=True)
 ```
 
-```
-
 **Sample Output:**
-```
-[
+
+```json
   {
     "messages": [
       {
@@ -169,7 +166,6 @@ memory.get_recent(k=10, return_details=True)
       }
     ]
   }
-]
 ```
 
 #### Get All Memories for a User
@@ -265,7 +261,7 @@ CosmicMemory stores memories using a one-turn-per-document model:
 
 **Note:** When `return_details=True`, retrieval methods return additional fields: `id`, `user_id`, `started_at`, and `ended_at` along with `messages`.
 
-#### Properties
+#### Configuration parameters
 
 - `subscription_id` - Azure subscription ID
 - `resource_group_name` - Resource group containing the Cosmos DB account
