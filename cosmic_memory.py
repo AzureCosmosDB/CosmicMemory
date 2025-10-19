@@ -6,8 +6,17 @@ import uuid
 import tiktoken
 from datetime import datetime
 from utils.processing import generate_embedding, summarize_thread
-from utils.cosmos_interface import
-    create_container, insert_memory, semantic_search, recent_memories, remove_item, get_memories_by_user, get_memories_by_thread, get_memory_by_id
+from utils.cosmos_interface import (
+    create_container,
+    insert_memory,
+    semantic_search,
+    recent_memories,
+    remove_item,
+    get_memories_by_user,
+    get_memories_by_thread,
+    get_summary_by_thread,
+    get_memory_by_id
+)
 
 class CosmicMemory:
     """
@@ -290,9 +299,10 @@ class CosmicMemory:
             print(f"get_id failed: {e}")
             return None
     
-    def summarize(self, thread_memories, thread_id, user_id):
+    def summarize(self, thread_memories, thread_id, user_id, write=False):
         """
         Generate a summary of thread memories using Azure OpenAI.
+
         """
         try:
             summary_document = summarize_thread(
@@ -302,11 +312,43 @@ class CosmicMemory:
                 self.openai_endpoint,
                 self.openai_completions_model,
                 self.openai_embedding_model,
-                self.openai_embedding_dimensions
+                self.openai_embedding_dimensions,
+                write
             )
+            
+            # Insert into Cosmos DB if write is True
+            if write and summary_document:
+                result = insert_memory(
+                    summary_document,
+                    self.cosmos_db_endpoint,
+                    self.cosmos_db_database,
+                    self.cosmos_db_container
+                )
+                if result:
+                    print(f"Summary successfully inserted into Cosmos DB")
+                else:
+                    print(f"Failed to insert summary into Cosmos DB")
+            
             return summary_document
         except Exception as e:
             print(f"summarize failed: {e}")
+            return None
+    
+    def get_summary(self, thread_id, return_details=False):
+        """
+        Retrieve the summary document for a specific thread from Cosmos DB.
+        """
+        try:
+            result = get_summary_by_thread(
+                thread_id,
+                self.cosmos_db_endpoint,
+                self.cosmos_db_database,
+                self.cosmos_db_container,
+                return_details
+            )
+            return result
+        except Exception as e:
+            print(f"get_summary failed: {e}")
             return None
     
     def delete(self, memory_id):

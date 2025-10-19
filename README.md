@@ -25,6 +25,8 @@ For memories written to Azure Cosmos DB, take advantage of advanced and semantic
 - **Recent Memories** 📅 - Retrieve the most recent interactions chronologically from persistent storage
 - **Filter by User/Thread** 🎯 - Query memories by specific user IDs or conversation threads
 - **Similarity Scoring** 📊 - Get relevance scores with semantic search results
+- **Thread Summarization** 📝 - Generate LLM-based summaries of conversation threads with key facts extraction
+- **Summary Retrieval** 📋 - Retrieve previously generated summaries from persistent storage (Azure Cosmos DB)
 - **Memory Deletion** 🗑️ - Remove specific memories by ID from persistent storage
 
 ### Security & Infrastructure
@@ -344,6 +346,84 @@ Retrieve a specific memory using its document ID:
 memory.get_id("document-id-here")
 ```
 
+### Summarize Conversations
+
+#### Generate Summary
+
+Create an AI-powered summary of a conversation thread with key facts extraction:
+
+```python
+# Get all memories for a thread
+thread_memories = memory.get_all_by_thread("thread-guid-here")
+
+# Generate summary without persisting to database (preview mode)
+summary = memory.summarize(
+    thread_memories,
+    thread_id="thread-guid-here",
+    user_id="user-123",
+    write=False
+)
+
+# Generate and persist summary to Azure Cosmos DB
+summary = memory.summarize(
+    thread_memories,
+    thread_id="thread-guid-here",
+    user_id="user-123",
+    write=True
+)
+```
+
+**Sample Output:**
+
+```json
+{
+  "thread_id": "thread-guid-here",
+  "user_id": "user-123",
+  "type": "summary",
+  "summary": "The user asked about making espresso at home. The assistant provided detailed information about grind settings, dose amounts for different roasts, and extraction timing.",
+  "facts": [
+    "User is interested in home espresso preparation",
+    "Double shot requires 16-19g depending on roast level",
+    "Extraction should take 25-30 seconds",
+    "Darker roasts need less coffee by weight due to lower density"
+  ],
+  "token_count": 145,
+  "last_updated": "2025-10-19T10:30:00Z"
+}
+```
+
+**Note:** When `write=False`, the summary is generated for preview without creating embeddings or persisting to the database, saving API calls. When `write=True`, embeddings are generated and the summary is stored in Azure Cosmos DB.
+
+#### Retrieve Summary
+
+Get a previously generated summary for a conversation thread:
+
+```python
+# Get summary with just summary and facts
+summary = memory.get_summary("thread-guid-here")
+
+# Get summary with additional metadata (thread_id, user_id, token_count, last_updated)
+summary = memory.get_summary("thread-guid-here", return_details=True)
+```
+
+**Sample Output (with return_details=True):**
+
+```json
+{
+  "summary": "The user asked about making espresso at home. The assistant provided detailed information about grind settings, dose amounts for different roasts, and extraction timing.",
+  "facts": [
+    "User is interested in home espresso preparation",
+    "Double shot requires 16-19g depending on roast level",
+    "Extraction should take 25-30 seconds",
+    "Darker roasts need less coffee by weight due to lower density"
+  ],
+  "thread_id": "thread-guid-here",
+  "user_id": "user-123",
+  "token_count": 145,
+  "last_updated": "2025-10-19T10:30:00Z"
+}
+```
+
 ### Delete Memories
 
 Remove specific memories by their document ID:
@@ -360,9 +440,13 @@ memory.get_all_by_user("user-123", return_details=True)
 memory.get_all_by_thread("thread-guid", return_details=True)
 ```
 
-## Data Model
+## Data Models
 
-CosmicMemory stores memories using a one-turn-per-document model:
+CosmicMemory stores two types of documents in Azure Cosmos DB:
+
+### Memory Document
+
+One-turn-per-document model for conversation memories:
 
 ```json
 {
@@ -388,6 +472,59 @@ CosmicMemory stores memories using a one-turn-per-document model:
 }
 ```
 
+### Summary Document
+
+AI-generated summaries of conversation threads:
+
+```json
+{
+  "id": "unique-guid",
+  "type": "summary",
+  "user_id": "user-123",
+  "thread_id": "conversation-guid",
+  "summary": "The user asked about making espresso at home. The assistant provided detailed information about grind settings, dose amounts for different roasts, and extraction timing.",
+  "facts": [
+    "User is interested in home espresso preparation",
+    "Double shot requires 16-19g depending on roast level",
+    "Extraction should take 25-30 seconds",
+    "Darker roasts need less coffee by weight due to lower density"
+  ],
+  "embedding": [],
+  "token_count": 145,
+  "last_updated": "2025-10-19T10:30:00Z"
+}
+```
+
+## Usage Guidance
+
+### Memory Storage Patterns
+
+CosmicMemory offers flexible memory management strategies to match your application's needs:
+
+**In-Memory Stack for Active Sessions**  
+Use the client-side RAM stack (`push_stack`, `get_stack`, `pop_stack`) to track short-term conversational context during active sessions. This approach provides instant access to recent interactions without database overhead, ideal for maintaining context across multiple LLM calls within a single conversation. Batch persist accumulated memories to Azure Cosmos DB using `write_stack()` when the session concludes or at natural conversation boundaries.
+
+**Direct Database Operations**  
+For immediate persistence requirements, use `write()` to store memories directly to Azure Cosmos DB as conversations occur. This ensures data durability from the moment of creation and is well-suited for stateless architectures, long-running conversations, or scenarios where every interaction must be preserved immediately.
+
+### Advanced Retrieval
+
+Leverage Azure Cosmos DB's powerful search capabilities for both memories and summaries:
+
+- **Semantic Search** - Find contextually relevant memories using vector embeddings and similarity scoring, even when exact keywords don't match
+- **Filtered Queries** - Retrieve memories scoped to specific users or conversation threads
+- **Temporal Access** - Get the most recent interactions chronologically for context continuity
+
+### Thread Summarization Workflow
+
+Optimize long-running conversations with AI-generated summaries:
+
+1. **Generate & Persist** - At the end of conversation threads or sessions, use `summarize()` with `write=True` to create and store thread summaries with extracted key facts
+2. **Resume Sessions** - When resuming a conversation, retrieve the summary using `get_summary()` to restore context without loading entire conversation histories
+3. **Preview Mode** - Use `summarize()` with `write=False` to generate summaries on-demand without database writes, useful for testing or temporary previews
+
+This pattern reduces token consumption in LLM prompts while maintaining conversational continuity across sessions.
+
 ## API Reference
 
 ### CosmicMemory Class
@@ -406,6 +543,8 @@ CosmicMemory stores memories using a one-turn-per-document model:
 - **`get_all_by_user(user_id, return_details=False)`** - Retrieve all memories for a specific user.
 - **`get_all_by_thread(thread_id, return_details=False)`** - Retrieve all memories for a specific conversation thread.
 - **`get_id(memory_id)`** - Retrieve a specific memory by its document id.
+- **`summarize(thread_memories, thread_id, user_id, write=False)`** - Generate an AI-powered summary of conversation thread with key facts extraction. When write=True, generates embeddings and persists to Azure Cosmos DB. When write=False, returns summary without embeddings or database writes (preview mode).
+- **`get_summary(thread_id, return_details=False)`** - Retrieve a previously generated summary for a conversation thread. When return_details=True, includes thread_id, user_id, token_count, and last_updated fields.
 - **`delete(memory_id)`** - Delete a memory by its document id.
 
 

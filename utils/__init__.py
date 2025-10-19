@@ -10,6 +10,7 @@ from .cosmos_interface import (
     remove_item,
     get_memories_by_user,
     get_memories_by_thread,
+    get_summary_by_thread,
     get_memory_by_id
 )
 
@@ -23,5 +24,6 @@ __all__ = [
     'remove_item',
     'get_memories_by_user',
     'get_memories_by_thread',
+    'get_summary_by_thread',
     'get_memory_by_id'
 ]

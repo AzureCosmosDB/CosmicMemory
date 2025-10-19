@@ -455,6 +455,70 @@ def get_memories_by_thread(thread_id, cosmos_db_endpoint, cosmos_db_database, co
         return None
 
 
+def get_summary_by_thread(thread_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container, return_details=False):
+    """
+    Retrieve the summary document for a specific thread.
+    
+    Args:
+        thread_id: The thread ID to retrieve the summary for
+        cosmos_db_endpoint: Cosmos DB endpoint URL
+        cosmos_db_database: Database name
+        cosmos_db_container: Container name
+        return_details: If True, includes thread_id, user_id, token_count, and last_updated in the projection
+    
+    Returns:
+        Dictionary with summary and facts (and optionally thread_id, user_id, token_count, last_updated)
+    """
+    try:
+        # Get Azure credential
+        credential = DefaultAzureCredential()
+        
+        # Create Cosmos DB client with Entra ID authentication
+        client = CosmosClient(
+            url=cosmos_db_endpoint,
+            credential=credential)
+        
+        # Get database and container references
+        database = client.get_database_client(cosmos_db_database)
+        container = database.get_container_client(cosmos_db_container)
+        
+        # Build query based on return_details flag
+        if return_details:
+            query = """
+                SELECT TOP 1 c.summary, c.facts, c.thread_id, c.user_id, c.token_count, c.last_updated
+                FROM c
+                WHERE c.thread_id = @thread_id AND c.type = 'summary'
+                ORDER BY c.last_updated DESC
+            """
+        else:
+            query = """
+                SELECT TOP 1 c.summary, c.facts
+                FROM c
+                WHERE c.thread_id = @thread_id AND c.type = 'summary'
+                ORDER BY c.last_updated DESC
+            """
+        
+        parameters = [
+            {"name": "@thread_id", "value": thread_id}
+        ]
+        
+        # Execute query
+        results = list(container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=False))
+        
+        # Return the most recent summary if found
+        if results:
+            return results[0]
+        else:
+            return None
+            
+    except Exception as e:
+        print(f"Warning: Failed to retrieve summary by thread - {e}")
+        return None
+
+
 def get_memory_by_id(item_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container):
     """
     Retrieve a specific memory document by its ID.
