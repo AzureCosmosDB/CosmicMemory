@@ -173,9 +173,9 @@ last_item = memory.pop_stack()
 # Returns the last item added, or None if stack is empty
 ```
 
-#### Write Stack to Database
+#### Write Stack to Azure Cosmos DB
 
-Persist all accumulated memories from the stack to Azure Cosmos DB in a batch:
+Persist the accumulated memories from the stack to Azure Cosmos DB. This will add the latest memories since the last write to the container to prevent redundant or duplicate memories. If this is the first write, all the memories in the stack will be added to the container.
 
 ```python
 # Write all stack items to Azure Cosmos DB
