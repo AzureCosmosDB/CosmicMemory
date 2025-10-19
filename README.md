@@ -384,16 +384,16 @@ CosmicMemory stores memories using a one-turn-per-document model:
 - **`write(messages, user_id=None, thread_id=None)`** - Write memories directly to Azure Cosmos DB with automatic token counting and optional embedding generation. Optionally specify user_id and/or thread_id to organize memories by user and conversation thread.
 - **`push_stack(messages)`** - Push a conversation turn (2 messages) onto the client-side memory stack for quick access without database writes
 - **`get_stack(k=None)`** - Retrieve the last k conversation turns from the client-side stack. If k is not specified, returns the entire stack.
-- **`pop_stack()`** - Remove and return the most recently added element from the memory stack
-- **`write_stack(user_id=None, thread_id=None)`** - Write all accumulated items from memory stack to Azure Cosmos DB in a batch
+- **`pop_stack()`** - Remove and return the most recently added element from the memory stack.
+- **`write_stack(user_id=None, thread_id=None)`** - Write newly accumulated items from memory stack to Azure Cosmos DB.
 - **`clear_stack()`** - Clear the client-side memory stack after committing or when starting a new conversation
 - **`search(query, k, user_id=None, thread_id=None, return_details=False, return_score=False)`** - Search for semantically similar memories using vector similarity, optionally filtered by user_id and/or thread_id. Set return_score=True to include similarity scores.
 - **`get_recent(k, user_id=None, thread_id=None, return_details=False)`** - Retrieve the k most recent memories ordered by timestamp, optionally filtered by user_id and/or thread_id
-- **`get_all_by_user(user_id, return_details=False)`** - Retrieve all memories for a specific user
-- **`get_all_by_thread(thread_id, return_details=False)`** - Retrieve all memories for a specific conversation thread
-- **`get_id(memory_id)`** - Retrieve a specific memory by its document ID
-- **`delete(memory_id)`** - Delete a memory by its document ID
-- 
+- **`get_all_by_user(user_id, return_details=False)`** - Retrieve all memories for a specific user.
+- **`get_all_by_thread(thread_id, return_details=False)`** - Retrieve all memories for a specific conversation thread.
+- **`get_id(memory_id)`** - Retrieve a specific memory by its document id.
+- **`delete(memory_id)`** - Delete a memory by its document id.
+
 
 ## Architecture
 
