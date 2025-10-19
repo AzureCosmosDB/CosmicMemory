@@ -238,7 +238,7 @@ CosmicMemory stores memories using a one-turn-per-document model:
       "token_count": 89
     }
   ],
-  "embedding": [0.123, -0.456, ...],
+  "embedding": [],
   "started_at": "2025-10-18T10:00:00Z",
   "ended_at": "2025-10-18T10:00:45Z"
 }
