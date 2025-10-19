@@ -8,14 +8,28 @@ CosmicMemory simplifies memory management for AI agents by providing dual storag
 
 ## Core Functionalities
 
-- **Client-Side Memory Stack** ⚡ - Fast in-memory storage for short-term context and batch operations
-- **Database/Container Creation** 🏗️ - Automatically create Azure Cosmos DB database and container with full-text and vector indexing policies for memory storage and retrieval
-- **Memory Storage** 💾 - Persist agent conversations with automatic token counting and metadata
-- **Vector Embeddings** 🔢 - Generate embeddings using Azure OpenAI for memories, enabling semantic search.
-- **Semantic Search** 🔍 - Find contextually relevant memories using vector similarity
-- **Recent Memories** 📅 - Retrieve the most recent interactions chronologically
-- **Memory Deletion** 🗑️ - Remove specific memories by ID
+### Client-Side Memory
+- **Push to Stack** ⚡ - Store memories in client-side RAM for immediate access
+- **Get from Stack** 📤 - Retrieve recent conversation context instantly for LLM prompts
+- **Pop from Stack** ↩️ - Remove the most recent memory from RAM
+- **Clear Stack** 🧹 - Reset client-side memory when starting new conversations
+
+### Azure Cosmos DB Memory Persistence
+- **Write to Database** 💾 - Persist individual memories directly to Azure Cosmos DB with automatic token counting and embeddings
+- **Batch Write Stack** 📦 - Commit multiple accumulated memories from RAM to an Azure Cosmos DB container 
+- **Database/Container Creation** 🏗️ - Automatically create Azure Cosmos DB database and container with full-text and vector indexing policies
+
+### Advanced Search & Retrieval
+For memories written to Azure Cosmos DB, take advantage of advanced and semantic memories search capabilities:
+- **Semantic Search** 🔍 - Find contextually relevant memories using vector similarity and Azure OpenAI embeddings
+- **Recent Memories** 📅 - Retrieve the most recent interactions chronologically from persistent storage
+- **Filter by User/Thread** 🎯 - Query memories by specific user IDs or conversation threads
+- **Similarity Scoring** 📊 - Get relevance scores with semantic search results
+- **Memory Deletion** 🗑️ - Remove specific memories by ID from persistent storage
+
+### Security & Infrastructure
 - **Entra ID Authentication** 🔐 - Secure access using Azure's identity platform
+- **Vector Embeddings** 🔢 - Automatic embedding generation using Azure OpenAI for semantic search capabilities
 
 ## Setup
 
