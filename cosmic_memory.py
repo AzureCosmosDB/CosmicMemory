@@ -32,8 +32,8 @@ class CosmicMemory:
         self.cosmos_db_database = None
         self.cosmos_db_container = None
         self.openai_endpoint = None
-        self.openai_embedding_model = None
         self.openai_completions_model = None
+        self.openai_embedding_model = None
         self.openai_embedding_dimensions = 512
         self.vector_index = True
         self.__memory_stack = []

@@ -104,8 +104,8 @@ memory.cosmos_db_endpoint = "https://your-account.documents.azure.com:443/"
 memory.cosmos_db_database = "your-database"
 memory.cosmos_db_container = "your-container"
 memory.openai_endpoint = "https://your-openai.openai.azure.com/"
-memory.openai_embedding_model = "embedding-deployment-name"
 memory.openai_completions_model = "completions-deployment-name"
+memory.openai_embedding_model = "embedding-deployment-name"
 memory.openai_embedding_dimensions = 512  # desired dimension for embeddings model
 # Enable vector indexing for semantic search
 memory.vector_index = True
