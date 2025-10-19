@@ -34,8 +34,7 @@ A lightweight Python framework for storing, managing, and retrieving agent memor
 
 ## Overview
 
-CosmicMemory simplifies memory management for AI agents by providing dual storage options: a client-side memory stack for fast, short-term access, and Azure Cosmos DB for persistent storage with advanced search capabilities. Store and retrieve memories from RAM for quick LLM context passing, or persist to Azure Cosmos DB for durability, scalability, and semantic search. Built on Azure's enterprise-grade infrastructure, it handles the complexity of vector embeddings and database operations so you can focus on building intelligent applications.
-
+CosmicMemory simplifies memory management for AI agents by providing dual storage options: a client-side memory stack for fast, short-term access, and Azure Cosmos DB for persistent storage with advanced search capabilities. Store and retrieve memories from RAM for quick LLM context passing, or persist to Azure Cosmos DB for durability, scalability, and semantic search. 
 
 
 ## Core Functionalities
