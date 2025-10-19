@@ -560,14 +560,7 @@ This separation allows for easy testing and potential reuse of the interface lay
 
 ## Security
 
-All Azure operations use **DefaultAzureCredential** for authentication, supporting:
-
-- Azure EntraID or Managed Identity
-- Environment variables
-- Visual Studio Code authentication
-- And other Azure credential sources
-
-No API keys or connection strings are stored in code.
+All Azure operations use **DefaultAzureCredential** for authentication, supporting Azure EntraID or Managed Identities, and environment variables. No API keys or connection strings are stored in code.
 
 ## Future Improvements
 
