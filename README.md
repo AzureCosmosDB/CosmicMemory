@@ -102,8 +102,8 @@ Store conversation turns with automatic token counting:
 
 ```python
 messages = [
-    {"role": "user", "content": "What's the weather like today?"},
-    {"role": "assistant", "content": "I don't have access to real-time weather data."}
+    {"role": "user", "content": "What's the best type of coffee?"},
+    {"role": "assistant", "content": "The best type of coffee is the one that makes you happy with every sip."}
 ]
 
 # Write with auto-generated user_id and thread_id
@@ -550,13 +550,24 @@ This pattern reduces token consumption in LLM prompts while maintaining conversa
 
 ## Architecture
 
-CosmicMemory consists of three main components:
+CosmicMemory follows a modular architecture with clear separation of concerns:
 
-- **`cosmic_memory.py`** - High-level API for memory operations
-- **`cosmos_interface.py`** - Low-level functions for Azure Cosmos DB interactions
-- **`processing.py`** - Data processing functions including embedding generation
+```
+CosmicMemory/
+├── cosmic_memory.py          # High-level API and memory orchestration
+├── utils/
+│   ├── __init__.py          # Package exports
+│   ├── cosmos_interface.py  # Azure Cosmos DB operations
+│   └── processing.py        # Embedding generation and AI processing
+├── mem_test.ipynb           # Usage examples and testing
+└── README.md
+```
 
-This separation allows for easy testing and potential reuse of the interface layer.
+- **`cosmic_memory.py`** - High-level API providing intuitive methods for memory operations, client-side stack management, and orchestration of database and AI operations
+
+- **`utils/cosmos_interface.py`** - Low-level Azure Cosmos DB functions for container creation, document CRUD operations, vector search, and query execution
+
+- **`utils/processing.py`** - AI processing utilities including Azure OpenAI embedding generation, thread summarization, and token counting
 
 ## Security
 
