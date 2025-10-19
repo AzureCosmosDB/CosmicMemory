@@ -171,8 +171,7 @@ def insert_memory(memory_document, cosmos_db_endpoint, cosmos_db_database, cosmo
         # Create Cosmos DB client with Entra ID authentication
         client = CosmosClient(
             url=cosmos_db_endpoint,
-            credential=credential
-        )
+            credential=credential)
         
         # Get database and container references
         database = client.get_database_client(cosmos_db_database)
@@ -186,7 +185,7 @@ def insert_memory(memory_document, cosmos_db_endpoint, cosmos_db_database, cosmo
         return None
 
 
-def semantic_search(query_embedding, k, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container, return_details=False):
+def semantic_search(query_embedding, k, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container, user_id=None, thread_id=None, return_details=False, return_score=False):
     """
     Find semantically similar memories using vector similarity search.
     """
@@ -197,34 +196,56 @@ def semantic_search(query_embedding, k, cosmos_db_endpoint, cosmos_db_database, 
         # Create Cosmos DB client with Entra ID authentication
         client = CosmosClient(
             url=cosmos_db_endpoint,
-            credential=credential
-        )
+            credential=credential)
         
         # Get database and container references
         database = client.get_database_client(cosmos_db_database)
         container = database.get_container_client(cosmos_db_container)
         
-        # Build SELECT clause based on return_details parameter
-        select_clause = "c.id, c.user_id, c.started_at, c.ended_at, c.messages" if return_details else "c.messages"
+        # Build SELECT clause based on return_details and return_score parameters
+        if return_details and return_score:
+            select_clause = "c.id, c.user_id, c.started_at, c.ended_at, c.messages, VectorDistance(c.embedding, @embedding) AS similarity_score"
+        elif return_details:
+            select_clause = "c.id, c.user_id, c.started_at, c.ended_at, c.messages"
+        elif return_score:
+            select_clause = "c.messages, VectorDistance(c.embedding, @embedding) AS similarity_score"
+        else:
+            select_clause = "c.messages"
         
-        # Perform vector search query
-        query = f"""
-            SELECT TOP @k {select_clause}
-            FROM c
-            ORDER BY VectorDistance(c.embedding, @embedding)
-        """
-        
+        # Build WHERE clause based on optional filters
+        where_conditions = []
         parameters = [
             {"name": "@k", "value": k},
             {"name": "@embedding", "value": query_embedding}
         ]
         
+        if user_id is not None:
+            where_conditions.append("c.user_id = @user_id")
+            parameters.append({"name": "@user_id", "value": user_id})
+        
+        if thread_id is not None:
+            where_conditions.append("c.thread_id = @thread_id")
+            parameters.append({"name": "@thread_id", "value": thread_id})
+        
+        where_clause = ""
+        if where_conditions:
+            where_clause = "WHERE " + " AND ".join(where_conditions)
+        
+        # Perform vector search query
+        query = f"""
+            SELECT TOP @k {select_clause}
+            FROM c
+            {where_clause}
+            ORDER BY VectorDistance(c.embedding, @embedding)
+        """
+        
         # Execute query
+        # Use partition key if thread_id is specified for better performance
+        enable_cross_partition = thread_id is None
         results = list(container.query_items(
             query=query,
             parameters=parameters,
-            enable_cross_partition_query=True
-        ))
+            enable_cross_partition_query=enable_cross_partition))
         
         return results
     except Exception as e:
@@ -232,7 +253,7 @@ def semantic_search(query_embedding, k, cosmos_db_endpoint, cosmos_db_database, 
         return None
 
 
-def recent_memories(k, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container, return_details=False):
+def recent_memories(k, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container, user_id=None, thread_id=None, return_details=False):
     """
     Retrieve the k most recent memory documents ordered by timestamp.
     """
@@ -243,8 +264,7 @@ def recent_memories(k, cosmos_db_endpoint, cosmos_db_database, cosmos_db_contain
         # Create Cosmos DB client with Entra ID authentication
         client = CosmosClient(
             url=cosmos_db_endpoint,
-            credential=credential
-        )
+            credential=credential)
         
         # Get database and container references
         database = client.get_database_client(cosmos_db_database)
@@ -253,23 +273,37 @@ def recent_memories(k, cosmos_db_endpoint, cosmos_db_database, cosmos_db_contain
         # Build SELECT clause based on return_details parameter
         select_clause = "c.id, c.user_id, c.started_at, c.ended_at, c.messages" if return_details else "c.messages"
         
+        # Build WHERE clause based on optional filters
+        where_conditions = []
+        parameters = [{"name": "@k", "value": k}]
+        
+        if user_id is not None:
+            where_conditions.append("c.user_id = @user_id")
+            parameters.append({"name": "@user_id", "value": user_id})
+        
+        if thread_id is not None:
+            where_conditions.append("c.thread_id = @thread_id")
+            parameters.append({"name": "@thread_id", "value": thread_id})
+        
+        where_clause = ""
+        if where_conditions:
+            where_clause = "WHERE " + " AND ".join(where_conditions)
+        
         # Query for most recent memories
         query = f"""
             SELECT TOP @k {select_clause}
             FROM c
+            {where_clause}
             ORDER BY c.started_at DESC
         """
         
-        parameters = [
-            {"name": "@k", "value": k}
-        ]
-        
         # Execute query
+        # Use partition key if thread_id is specified for better performance
+        enable_cross_partition = thread_id is None
         results = list(container.query_items(
             query=query,
             parameters=parameters,
-            enable_cross_partition_query=True
-        ))
+            enable_cross_partition_query=enable_cross_partition))
         
         return results
     except Exception as e:
@@ -288,8 +322,7 @@ def remove_item(item_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_conta
         # Create Cosmos DB client with Entra ID authentication
         client = CosmosClient(
             url=cosmos_db_endpoint,
-            credential=credential
-        )
+            credential=credential)
         
         # Get database and container references
         database = client.get_database_client(cosmos_db_database)
@@ -302,8 +335,7 @@ def remove_item(item_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_conta
         items = list(container.query_items(
             query=query,
             parameters=parameters,
-            enable_cross_partition_query=True
-        ))
+            enable_cross_partition_query=True))
         
         if not items:
             print(f"Warning: Item with id {item_id} not found")
@@ -331,8 +363,7 @@ def get_memories_by_user(user_id, cosmos_db_endpoint, cosmos_db_database, cosmos
         # Create Cosmos DB client with Entra ID authentication
         client = CosmosClient(
             url=cosmos_db_endpoint,
-            credential=credential
-        )
+            credential=credential)
         
         # Get database and container references
         database = client.get_database_client(cosmos_db_database)
@@ -357,8 +388,7 @@ def get_memories_by_user(user_id, cosmos_db_endpoint, cosmos_db_database, cosmos
         results = list(container.query_items(
             query=query,
             parameters=parameters,
-            enable_cross_partition_query=True
-        ))
+            enable_cross_partition_query=True))
         
         return results
     except Exception as e:
@@ -373,8 +403,7 @@ def get_memories_by_user(user_id, cosmos_db_endpoint, cosmos_db_database, cosmos
         results = list(container.query_items(
             query=query,
             parameters=parameters,
-            enable_cross_partition_query=True
-        ))
+            enable_cross_partition_query=True))
         
         return results
     except Exception as e:
@@ -393,8 +422,7 @@ def get_memories_by_thread(thread_id, cosmos_db_endpoint, cosmos_db_database, co
         # Create Cosmos DB client with Entra ID authentication
         client = CosmosClient(
             url=cosmos_db_endpoint,
-            credential=credential
-        )
+            credential=credential)
         
         # Get database and container references
         database = client.get_database_client(cosmos_db_database)
@@ -419,8 +447,7 @@ def get_memories_by_thread(thread_id, cosmos_db_endpoint, cosmos_db_database, co
         results = list(container.query_items(
             query=query,
             parameters=parameters,
-            enable_cross_partition_query=False  # Can use partition key for efficiency
-        ))
+            enable_cross_partition_query=False))
         
         return results
     except Exception as e:
@@ -439,8 +466,7 @@ def get_memory_by_id(item_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_
         # Create Cosmos DB client with Entra ID authentication
         client = CosmosClient(
             url=cosmos_db_endpoint,
-            credential=credential
-        )
+            credential=credential)
         
         # Get database and container references
         database = client.get_database_client(cosmos_db_database)
@@ -453,8 +479,7 @@ def get_memory_by_id(item_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_
         results = list(container.query_items(
             query=query,
             parameters=parameters,
-            enable_cross_partition_query=True
-        ))
+            enable_cross_partition_query=True))
         
         if results:
             return results[0]
