@@ -5,14 +5,17 @@ import json
 import uuid
 import tiktoken
 from datetime import datetime
+from processing import generate_embedding
 from cosmos_interface import (
-    generate_embedding,
+    create_container,
     insert_memory,
     semantic_search,
     recent_memories,
-    remove_item
+    remove_item,
+    get_memories_by_user,
+    get_memories_by_thread,
+    get_memory_by_id
 )
-
 
 class CosmicMemory:
     """
@@ -21,24 +24,37 @@ class CosmicMemory:
     
     def __init__(self):
         """Initialize the CosmicMemory class with default None values."""
+        self.subscription_id = None
+        self.resource_group_name = None
+        self.account_name = None
         self.cosmos_db_endpoint = None
         self.cosmos_db_database = None
         self.cosmos_db_container = None
         self.openai_endpoint = None
         self.openai_embedding_model = None
         self.openai_embedding_dimensions = 512
-        self.vector_index = False
+        self.vector_index = True
     
-    def AddMem(self, messages, user_id=None):
+    def create_memory_store(self):
         """
-        Add memories to the database.
-        
-        Args:
-            messages: List of dictionaries containing memory data
-            user_id: User/tenant identifier (optional, generates GUID if not provided)
-        
-        Returns:
-            None
+        Create Cosmos DB database and container with full-text and vector indexing policies.
+        """
+        try:
+            result = create_container(
+                self.subscription_id,
+                self.resource_group_name,
+                self.account_name,
+                self.cosmos_db_database,
+                self.cosmos_db_container
+            )
+            return result
+        except Exception as e:
+            print(f"create_memory_store failed: {e}")
+            return False
+    
+    def add(self, messages, user_id=None):
+        """
+        Store conversation messages with automatic token counting and optional embeddings.
         """
         try:
             # Generate GUID for user_id if not provided
@@ -59,10 +75,10 @@ class CosmicMemory:
             memory_document = {
                 "id": str(uuid.uuid4()),  # Unique identifier for this memory document
                 "user_id": user_id,
-                "threadId": str(uuid.uuid4()),  # Generate a new GUID for threadId
+                "thread_id": str(uuid.uuid4()),  # Generate a new GUID for thread_id
                 "messages": messages_with_tokens,
-                "startedAt": datetime.now().isoformat() + "Z",
-                "endedAt": datetime.now().isoformat() + "Z"
+                "started_at": datetime.now().isoformat() + "Z",
+                "ended_at": datetime.now().isoformat() + "Z"
             }
             
             # Generate embedding if vector_index is enabled
@@ -82,9 +98,6 @@ class CosmicMemory:
             # Convert to JSON string with formatting
             json_output = json.dumps(memory_document, indent=2)
             
-            print(f"AddMem called successfully")
-            #print(json_output)
-            
             # Insert into Cosmos DB
             result = insert_memory(
                 memory_document,
@@ -97,13 +110,13 @@ class CosmicMemory:
             else:
                 print(f"Failed to insert memory into Cosmos DB")
         except Exception as e:
-            print(f"AddMem called but failed")
+            print(f"add_mem called but failed")
             print(f"Error: {e}")
             # Still try to print what we have
             try:
                 error_document = {
                     "id": user_id,
-                    "threadId": user_id,
+                    "thread_id": user_id,
                     "messages": messages,
                     "error": str(e)
                 }
@@ -111,78 +124,115 @@ class CosmicMemory:
             except:
                 print(f"Could not serialize data - messages: {messages}, user_id: {user_id}")
     
-    def SearchMem(self, query, k, mode="auto", return_id=False):
+    def search(self, query, k, return_details=False):
         """
-        Search for memories in the database.
-        
-        Args:
-            query: Search query string
-            k: Number of items to return (integer)
-            mode: Search mode - "recent", "semantic", or "auto" (default: "auto")
-            return_id: If True, include document id in results (default: False)
-        
-        Returns:
-            None
+        Search memories using semantic similarity based on query text.
         """
         try:
-            print(f"SearchMem called successfully")
-            print(f"Arguments - query: {query}, k: {k}, mode: {mode}, return_id: {return_id}")
+            # Generate embedding for the query
+            query_embedding = generate_embedding(
+                [{"content": query}],
+                self.openai_endpoint,
+                self.openai_embedding_model,
+                self.openai_embedding_dimensions
+            )
             
-            results = None
-            
-            if mode == "semantic":
-                # Generate embedding for the query
-                query_embedding = generate_embedding(
-                    [{"content": query}],
-                    self.openai_endpoint,
-                    self.openai_embedding_model,
-                    self.openai_embedding_dimensions
-                )
-                if query_embedding is not None:
-                    results = semantic_search(
-                        query_embedding,
-                        k,
-                        self.cosmos_db_endpoint,
-                        self.cosmos_db_database,
-                        self.cosmos_db_container,
-                        return_id
-                    )
-                else:
-                    print("Failed to generate query embedding for semantic search")
-            elif mode == "recent":
-                # Get most recent memories
-                results = recent_memories(
+            if query_embedding is not None:
+                results = semantic_search(
+                    query_embedding,
                     k,
                     self.cosmos_db_endpoint,
                     self.cosmos_db_database,
                     self.cosmos_db_container,
-                    return_id
+                    return_details
                 )
+                return results
             else:
-                # Auto mode - could implement logic to choose automatically
-                print(f"Mode '{mode}' not implemented. Use 'semantic' or 'recent'.")
-            
-            # Print results
-            if results is not None:
-                print(f"\nSearch results (found {len(results)} items):")
-                print(json.dumps(results, indent=2))
-            else:
-                print("No results found or search failed")
+                print("Failed to generate query embedding for semantic search")
+                return None
                 
         except Exception as e:
-            print(f"SearchMem called but failed")
-            print(f"Arguments - query: {query}, k: {k}, mode: {mode}, return_id: {return_id}")
-            print(f"Error: {e}")
+            print(f"search failed: {e}")
+            return None
     
-    def DeleteMem(self, memory_id):
+    def get_recent(self, k, return_details=False):
         """
-        Delete a memory by its ID.
-        
-        Args:
-            memory_id: ID of the memory to delete
-        
-        Returns:
-            None
+        Retrieve the most recent memories ordered by timestamp.
+        """
+        try:
+            # Get most recent memories
+            results = recent_memories(
+                k,
+                self.cosmos_db_endpoint,
+                self.cosmos_db_database,
+                self.cosmos_db_container,
+                return_details
+            )
+            return results
+                
+        except Exception as e:
+            print(f"get_recent failed: {e}")
+            return None
+    
+    def get_all_by_user(self, user_id, return_details=False):
+        """
+        Retrieve all memories for a specific user.
+        """
+        try:
+            # Get all memories for this user
+            results = get_memories_by_user(
+                user_id,
+                self.cosmos_db_endpoint,
+                self.cosmos_db_database,
+                self.cosmos_db_container,
+                return_details
+            )
+            return results
+                
+        except Exception as e:
+            print(f"get_all_by_user failed: {e}")
+            return None
+    
+    def get_all_by_thread(self, thread_id, return_details=False):
+        """
+        Retrieve all memories for a specific conversation thread.
+        """
+        try:
+            # Get all memories for this thread
+            results = get_memories_by_thread(
+                thread_id,
+                self.cosmos_db_endpoint,
+                self.cosmos_db_database,
+                self.cosmos_db_container,
+                return_details
+            )
+            return results
+                
+        except Exception as e:
+            print(f"get_all_by_thread failed: {e}")
+            return None
+    
+    def get_id(self, memory_id):
+        """
+        Retrieve a specific memory by its document ID.
+        """
+        try:
+            # Get the memory by ID
+            result = get_memory_by_id(
+                memory_id,
+                self.cosmos_db_endpoint,
+                self.cosmos_db_database,
+                self.cosmos_db_container
+            )
+            return result
+                
+        except Exception as e:
+            print(f"get_id failed: {e}")
+            return None
+    
+    def delete(self, memory_id):
+        """
+        Remove a memory document from Cosmos DB by its ID.
         """
         try:
             print(f"Arguments - memory_id: {memory_id}")
@@ -200,5 +250,5 @@ class CosmicMemory:
             else:
                 print(f"Failed to delete memory from Cosmos DB")
         except Exception as e:
-            print(f"DeleteMem called but failed")
+            print(f"delete_mem called but failed")
             print(f"Error: {e}")
