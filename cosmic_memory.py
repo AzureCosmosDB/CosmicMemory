@@ -6,16 +6,8 @@ import uuid
 import tiktoken
 from datetime import datetime
 from utils.processing import generate_embedding, summarize_thread
-from utils.cosmos_interface import (
-    create_container,
-    insert_memory,
-    semantic_search,
-    recent_memories,
-    remove_item,
-    get_memories_by_user,
-    get_memories_by_thread,
-    get_memory_by_id
-)
+from utils.cosmos_interface import
+    create_container, insert_memory, semantic_search, recent_memories, remove_item, get_memories_by_user, get_memories_by_thread, get_memory_by_id
 
 class CosmicMemory:
     """
@@ -155,8 +147,8 @@ class CosmicMemory:
             self.write(messages, user_id=user_id, thread_id=thread_id)
         
         # Update stack_index to the last index written
-        if len(self.__memory_stack) > 0:
-            self.__stack_index = len(self.__memory_stack) - 1
+        self.__stack_index = max(len(self.__memory_stack) - 1,0)
+        
     
     def get_stack(self, k=None):
         """
