@@ -569,6 +569,23 @@ All Azure operations use **DefaultAzureCredential** for authentication, supporti
 
 No API keys or connection strings are stored in code.
 
+## Future Improvements
+
+- **Full-Text Search with FullTextContains** - Enable keyword-based memory retrieval using Azure Cosmos DB's full-text search capabilities to complement semantic search with text matching.
+
+- **Hybrid Search Retrieval** - Combine vector similarity search with full-text keyword search using Reciprocal Rank Fusion (RRF) to improve retrieval accuracy by leveraging both semantic understanding and term scoring.
+
+- **Fact-Based Retrieval** - Query and retrieve specific facts extracted from conversation summaries, enabling granular access to key information without processing entire conversation histories.
+
+- **Memory Importance Scoring** - Implement automatic importance weighting for memories based on factors like recency, interaction frequency, and user-defined priorities to surface the most relevant context for LLM prompts.
+
+- **Cross-Thread Memory Links** - Enable relationship mapping between related conversations across different threads, allowing agents to discover and reference relevant context from past interactions on similar topics.
+
+- **Temporal Memory Decay** - Add configurable time-based relevance scoring that gradually reduces the weight of older memories, simulating natural human memory patterns for more contextually appropriate recall.
+
+- **Memory Compression** - Automatically consolidate and compress related memories into higher-level abstractions over time, reducing storage costs and token usage while preserving essential information.
+
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

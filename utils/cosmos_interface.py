@@ -90,6 +90,9 @@ def create_container(subscription_id, resource_group_name, account_name, cosmos_
                 },
                 {
                     "path": "/messages/[1]/content"
+                },
+                {
+                    "path": "/summary"
                 }
             ]
         }
@@ -104,6 +107,10 @@ def create_container(subscription_id, resource_group_name, account_name, cosmos_
                 },
                 {
                     "path": "/messages/[1]/content",
+                    "language": "en-US"
+                },
+                {
+                    "path": "/summary",
                     "language": "en-US"
                 }
             ]
@@ -458,16 +465,6 @@ def get_memories_by_thread(thread_id, cosmos_db_endpoint, cosmos_db_database, co
 def get_summary_by_thread(thread_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container, return_details=False):
     """
     Retrieve the summary document for a specific thread.
-    
-    Args:
-        thread_id: The thread ID to retrieve the summary for
-        cosmos_db_endpoint: Cosmos DB endpoint URL
-        cosmos_db_database: Database name
-        cosmos_db_container: Container name
-        return_details: If True, includes thread_id, user_id, token_count, and last_updated in the projection
-    
-    Returns:
-        Dictionary with summary and facts (and optionally thread_id, user_id, token_count, last_updated)
     """
     try:
         # Get Azure credential
