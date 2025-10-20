@@ -38,9 +38,9 @@ CosmicMemory simplifies memory management for AI agents by providing dual storag
 
 **Two Ways to Store Memories:**
 
-1. **Client-Side RAM Stack** - Store conversation turns in a client-side memory stack for immediate access during active sessions. Later, write the accumulated memories to Azure Cosmos DB for persistence and enable advanced retrieval inside threads or across-thread semantic search.
+1. **Client-side in-memory** - Store conversation turns in a client-side memory stack for immediate access during active sessions. Later, write the accumulated memories to Azure Cosmos DB for persistence and enable advanced retrieval inside threads or across-thread semantic search.
 
-2. **Direct Cosmos DB Operations** - Write and read memories directly to and from Azure Cosmos DB for immediate persistence. This approach ensures every interaction is durably stored and immediately available for advanced search and retrieval operations. 
+2. **Azure Cosmos DB for persistance and advanced retrieval** - Write and read memories directly to and from Azure Cosmos DB for immediate persistence. This approach ensures every interaction is durably stored and immediately available for advanced search and retrieval operations. 
 
 
 ## Core Functionalities
@@ -125,7 +125,14 @@ memory.vector_index = True
 
 **Environment Variables for `load_config()`:**
 
-Create a `.env` file in your project root and fill out the connection and configuration details.
+Create a `.env` file in your project root with your Azure configuration details. You can use the `example.env` file as a template:
+
+```bash
+cp example.env .env
+# Then edit .env with your actual values
+```
+
+Example `.env` file content:
 
 ### Create Memory Store
 
@@ -165,7 +172,7 @@ memory.write(messages, thread_id="thread-guid-456")
 memory.write(messages, user_id="user-123", thread_id="thread-guid-456")
 ```
 
-### Client-Side Memory Stack
+### Client-Side Memory 
 
 CosmicMemory provides a client-side memory stack for efficient short-term memory management. The stack is organized as a nested dictionary structure that maintains separate conversation histories per user and thread: `{user_id: {thread_id: {"messages": [...], "stack_index": 0}}}`. This allows you to manage multiple concurrent conversations in RAM and batch write them to Azure Cosmos DB when desired (e.g., at the end of a turn or session).
 

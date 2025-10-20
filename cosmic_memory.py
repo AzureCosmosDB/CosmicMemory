@@ -51,12 +51,12 @@ class CosmicMemory:
         # Nested dictionary structure: {user_id: {thread_id: {"messages": [], "stack_index": 0}}}
         self.__memory_stack = {}
     
-    def load_config(self, env_file=None):
+    def load_config(self):
         """
         Load configuration from environment variables or .env file.
 
         Args:
-            env_file (str, optional): Path to .env file. If None, uses default .env in current directory.
+            None
 
         Returns:
             None
@@ -65,7 +65,7 @@ class CosmicMemory:
             None
         """
         # Load environment variables from .env file
-        load_dotenv(env_file)
+        load_dotenv()
         
         # Load configuration from environment variables
         self.subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID', self.subscription_id)
