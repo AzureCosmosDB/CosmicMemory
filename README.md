@@ -7,7 +7,7 @@
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Azure%20Cosmos%20DB-0077B5?logo=linkedin)](https://www.linkedin.com/showcase/azure-cosmos-db/)
 [![YouTube](https://img.shields.io/badge/YouTube-Azure%20Cosmos%20DB-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@AzureCosmosDB)
 
-A lightweight Python framework for storing, managing, and retrieving agent memories using Azure Cosmos DB and Azure OpenAI.
+A Python framework for storing, managing, and retrieving agent memories using Azure Cosmos DB and Azure OpenAI, that orchestrates memory processesing on the client. 
 
 ## Table of Contents
 - [Overview](#overview)
@@ -648,7 +648,9 @@ All Azure operations use **DefaultAzureCredential** for authentication, supporti
 
 ## Future Improvements
 
-- **Async Operations** - Add asynchronous versions of all I/O-bound operations (database writes, searches, embedding generation) to improve performance and enable concurrent processing of multiple memory operations.
+- **Performance Optimizations** - Improve overall speed and responsiveness through optimizations including connection pooling, caching strategies, parallel processing, request batching, and reducing unnecessary API calls. Current operations are too slow and need comprehensive performance improvements.
+    - **Async Operations** - Add asynchronous versions of all I/O-bound operations (database writes, searches, embedding generation) to improve performance and enable concurrent processing of multiple memory operations.
+    - **Bulk Operations** - Implement bulk calls to Azure OpenAI for batch embedding generation and bulk insert operations to Cosmos DB for improved throughput and reduced latency when processing large volumes of memories or conversation histories.
 
 - **Key-Based Authentication Support** - Add support for connection strings and access keys as an alternative to Entra ID (formerly Azure AD) authentication, providing an easier setup path for PoCs, development environments, and users new to Azure and Cosmos DB.
 
@@ -657,6 +659,8 @@ All Azure operations use **DefaultAzureCredential** for authentication, supporti
 - **Hybrid Search Retrieval** - Combine vector similarity search with full-text keyword search using Reciprocal Rank Fusion (RRF) to improve retrieval accuracy by leveraging both semantic understanding and term scoring.
 
 - **Fact-Based Retrieval** - Query and retrieve specific facts extracted from conversation summaries, enabling granular access to key information without processing entire conversation histories.
+
+- **Fact Search and Indexing** - Implement semantic and keyword search capabilities specifically for facts extracted from summaries, with dedicated indexing to enable fast, targeted retrieval of factual information across all conversations and threads.
 
 - **Memory Importance Scoring** - Implement automatic importance weighting for memories based on factors like recency, interaction frequency, and user-defined priorities to surface the most relevant context for LLM prompts.
 
