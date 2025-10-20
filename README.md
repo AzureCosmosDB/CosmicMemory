@@ -416,11 +416,6 @@ summary = memory.summarize_thread("thread-guid-here", write=False)
 summary = memory.summarize_thread("thread-guid-here", write=True)
 ```
 
-**Benefits:** 
-- Automatically retrieves all thread memories from Cosmos DB
-- Automatically extracts `user_id` from the first memory document
-- Simplifies the workflow to a single method call
-
 **Sample Output:**
 
 ```json
@@ -440,7 +435,7 @@ summary = memory.summarize_thread("thread-guid-here", write=True)
 }
 ```
 
-**Note:** When `write=False`, the summary is generated for preview without creating embeddings or persisting to the database, saving API calls. When `write=True`, embeddings are generated and the summary is stored in Azure Cosmos DB.
+**Note:** When `write=False`, the summary is generated for preview without creating embeddings or persisting to the database. When `write=True`, embeddings are generated and the summary is stored in Azure Cosmos DB for later retrieval.
 
 #### Retrieve Summary
 
