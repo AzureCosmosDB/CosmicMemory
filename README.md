@@ -42,6 +42,7 @@ CosmicMemory simplifies memory management for AI agents by providing dual storag
 
 2. **Azure Cosmos DB for persistance and advanced retrieval** - Write and read memories directly to and from Azure Cosmos DB for immediate persistence. This approach ensures every interaction is durably stored and immediately available for advanced search and retrieval operations. 
 
+![CosmicMemory Architecture](design.png)
 
 ## Core Functionalities
 
@@ -656,8 +657,12 @@ All Azure operations use **DefaultAzureCredential** for authentication, supporti
 ## Future Improvements
 
 - **Performance Optimizations** - Improve overall speed and responsiveness through optimizations including connection pooling, caching strategies, parallel processing, request batching, and reducing unnecessary API calls. Current operations are too slow and need comprehensive performance improvements.
-    - **Async Operations** - Add asynchronous versions of all I/O-bound operations (database writes, searches, embedding generation) to improve performance and enable concurrent processing of multiple memory operations.
-    - **Bulk Operations** - Implement bulk calls to Azure OpenAI for batch embedding generation and bulk insert operations to Cosmos DB for improved throughput and reduced latency when processing large volumes of memories or conversation histories.
+
+- **Cloud Compute for Data processing** - Offload orchestration of compute-intensive tasks like summary generation, embedding creation, etc. to serverless compute platforms such as Azure Functions. This would enable background processing, improve responsiveness, reduce client-side resource consumption.
+
+- **Async Operations** - Add asynchronous versions of all I/O-bound operations (database writes, searches, embedding generation) to improve performance and enable concurrent processing of multiple memory operations.
+
+- **Bulk Operations** - Implement bulk calls to Azure OpenAI for batch embedding generation and bulk insert operations to Cosmos DB for improved throughput and reduced latency when processing large volumes of memories or conversation histories.
 
 - **Key-Based Authentication Support** - Add support for connection strings and access keys as an alternative to Entra ID (formerly Azure AD) authentication, providing an easier setup path for PoCs, development environments, and users new to Azure and Cosmos DB.
 
