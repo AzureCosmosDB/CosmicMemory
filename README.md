@@ -34,7 +34,13 @@ A lightweight Python framework for storing, managing, and retrieving agent memor
 
 ## Overview
 
-CosmicMemory simplifies memory management for AI agents by providing dual storage options: a client-side memory stack for fast, short-term access, and Azure Cosmos DB for persistent storage with advanced search capabilities. Store and retrieve memories from RAM for quick LLM context passing, or persist to Azure Cosmos DB for durability, scalability, and semantic search. 
+CosmicMemory simplifies memory management for AI agents by providing dual storage options: a client-side memory stack for fast, short-term access, and Azure Cosmos DB for persistent storage with advanced search capabilities. Store and retrieve memories from RAM for quick LLM context passing, or persist to Azure Cosmos DB for durability, scalability, and semantic search.
+
+**Two Ways to Store Memories:**
+
+1. **Client-Side RAM Stack** - Store conversation turns in a client-side memory stack for immediate access during active sessions. Later, write the accumulated memories to Azure Cosmos DB for persistence and enable advanced retrieval inside threads or across-thread semantic search.
+
+2. **Direct Cosmos DB Operations** - Write and read memories directly to and from Azure Cosmos DB for immediate persistence. This approach ensures every interaction is durably stored and immediately available for advanced search and retrieval operations. 
 
 
 ## Core Functionalities
@@ -84,7 +90,7 @@ pip install -r requirements.txt
 ### Configuration
 
 1. **Azure Cosmos DB**: Create a database and container in your Azure Cosmos DB account
-2. **Azure OpenAI**: Deploy an embedding model (e.g., `text-embedding-3-large`)
+2. **Azure OpenAI**: Deploy an embedding model (e.g., `text-embedding-3-large`) and completions model (e.g., `gpt-5-mini`)
 3. **Authentication**: Run `az login` to authenticate with Azure
 
 ## Usage
@@ -97,7 +103,12 @@ from cosmic_memory import CosmicMemory
 # Create instance
 memory = CosmicMemory()
 
-# Configure Azure resources
+# Option 1: Load configuration from .env file or environment variables
+memory.load_config()  # Loads from .env in current directory
+# or
+memory.load_config('.env')  # Loads from specific file
+
+# Option 2: Configure Azure resources manually
 memory.subscription_id = "your-subscription-id"
 memory.resource_group_name = "your-resource-group"
 memory.account_name = "your-cosmos-account-name"
@@ -110,6 +121,24 @@ memory.openai_embedding_model = "embedding-deployment-name"
 memory.openai_embedding_dimensions = 512  # desired dimension for embeddings model
 # Enable vector indexing for semantic search
 memory.vector_index = True
+```
+
+**Environment Variables for `load_config()`:**
+
+Create a `.env` file in your project root with the following variables:
+
+```env
+AZURE_SUBSCRIPTION_ID=your-subscription-id
+AZURE_RESOURCE_GROUP_NAME=your-resource-group
+AZURE_COSMOS_ACCOUNT_NAME=your-cosmos-account-name
+AZURE_COSMOS_DB_ENDPOINT=https://your-account.documents.azure.com:443/
+AZURE_COSMOS_DB_DATABASE=your-database
+AZURE_COSMOS_DB_CONTAINER=your-container
+AZURE_OPENAI_ENDPOINT=https://your-openai.openai.azure.com/
+AZURE_OPENAI_COMPLETIONS_MODEL=completions-deployment-name
+AZURE_OPENAI_EMBEDDING_MODEL=embedding-deployment-name
+AZURE_OPENAI_EMBEDDING_DIMENSIONS=512
+AZURE_VECTOR_INDEX=true
 ```
 
 ### Create Memory Store
@@ -152,27 +181,28 @@ memory.write(messages, user_id="user-123", thread_id="thread-guid-456")
 
 ### Client-Side Memory Stack
 
-CosmicMemory provides a client-side memory stack for efficient short-term memory management. The stack keeps memories in RAM for quick access and allows batch writes to Azure Cosmos DB when desired (e.g., at the end of a turn or session)
+CosmicMemory provides a client-side memory stack for efficient short-term memory management. The stack is organized as a nested dictionary structure that maintains separate conversation histories per user and thread: `{user_id: {thread_id: {"messages": [...], "stack_index": 0}}}`. This allows you to manage multiple concurrent conversations in RAM and batch write them to Azure Cosmos DB when desired (e.g., at the end of a turn or session).
+
 
 #### Push to Stack
 
 Add memories to the client-side stack without writing to Azure Cosmos DB:
 
 ```python
-# Add messages to the stack
+# Add messages to the stack for a specific user and thread
 messages1 = [
     {"role": "user", "content": "Hello!"},
     {"role": "assistant", "content": "Hi there!"}
 ]
-memory.push_stack(messages1)
+memory.push_stack(messages1, user_id="user-123", thread_id="thread-456")
 
 messages2 = [
     {"role": "user", "content": "How are you?"},
     {"role": "assistant", "content": "I'm doing great!"}
 ]
-memory.push_stack(messages2)
+memory.push_stack(messages2, user_id="user-123", thread_id="thread-456")
 
-# Stack now contains 2 conversation turns in RAM
+# Stack now contains 2 conversation turns in RAM for this user/thread combination
 ```
 
 **Note:** `push_stack()` requires exactly 2 elements (one turn) per call.
@@ -180,14 +210,14 @@ memory.push_stack(messages2)
 
 #### Get from Stack
 
-Retrieve the last k items from the stack to pass to your LLM:
+Retrieve the last k items from the stack for a specific user and thread to pass to your LLM:
 
 ```python
-# Get the last 3 conversation turns from the stack
-recent_context = memory.get_stack(3)
+# Get the last 3 conversation turns from the stack for a specific user/thread
+recent_context = memory.get_stack(user_id="user-123", thread_id="thread-456", k=3)
 
-# Get all items from the stack
-all_context = memory.get_stack()
+# Get all items from the stack for a specific user/thread
+all_context = memory.get_stack(user_id="user-123", thread_id="thread-456")
 ```
 
 **Sample Output:**
@@ -211,11 +241,11 @@ all_context = memory.get_stack()
 
 #### Pop from Stack
 
-Remove and return the most recently added element from the stack:
+Remove and return the most recently added element from the stack for a specific user and thread:
 
 ```python
-# Remove the most recent conversation turn
-last_item = memory.pop_stack()
+# Remove the most recent conversation turn for a specific user/thread
+last_item = memory.pop_stack(user_id="user-123", thread_id="thread-456")
 
 # Returns the last item added, or None if stack is empty
 ```
@@ -225,43 +255,49 @@ last_item = memory.pop_stack()
 Persist the accumulated memories from the stack to Azure Cosmos DB. This will add the latest memories since the last write to the container to prevent redundant or duplicate memories. If this is the first write, all the memories in the stack will be added to the container.
 
 ```python
-# Write all stack items to Azure Cosmos DB
-memory.write_stack(user_id="user-123", thread_id="thread-guid-456")
+# Write all stack items for a specific user/thread to Azure Cosmos DB
+memory.write_stack(user_id="user-123", thread_id="thread-456")
 
-# All memories are now persisted with the same user_id and thread_id
+# All memories are now persisted with the specified user_id and thread_id
 ```
 
 #### Clear Stack
 
-Clear the stack after committing or when starting a new conversation:
+Clear the stack after committing or when starting a new conversation. You can clear all stacks, all threads for a specific user, or a specific user/thread combination:
 
 ```python
-# Clear all items from the stack
+# Clear all items from all stacks
 memory.clear_stack()
+
+# Clear all threads for a specific user
+memory.clear_stack(user_id="user-123")
+
+# Clear a specific user/thread combination
+memory.clear_stack(user_id="user-123", thread_id="thread-456")
 ```
 
 **Example Workflow:**
 
 ```python
-# Accumulate conversation turns in RAM
+# Accumulate conversation turns in RAM for a specific user/thread
 memory.push_stack([
     {"role": "user", "content": "What's the capital of France?"},
     {"role": "assistant", "content": "Paris is the capital of France."}
-])
+], user_id="user-456", thread_id="thread-789")
 
 memory.push_stack([
     {"role": "user", "content": "What's the population?"},
     {"role": "assistant", "content": "Paris has about 2.2 million people."}
-])
+], user_id="user-456", thread_id="thread-789")
 
 # Get recent context for next LLM call
-context = memory.get_stack(2)
+context = memory.get_stack(user_id="user-456", thread_id="thread-789", k=2)
 
 # When ready, batch persist to database
 memory.write_stack(user_id="user-456", thread_id="thread-789")
 
-# Clear stack for next conversation
-memory.clear_stack()
+# Clear stack for this user/thread when starting a new conversation
+memory.clear_stack(user_id="user-456", thread_id="thread-789")
 ```
 
 ### Search and Retrieve Memories
@@ -580,13 +616,14 @@ This pattern reduces token consumption in LLM prompts while maintaining conversa
 
 #### Methods
 
+- **`load_config(env_file=None)`** - Load configuration from environment variables or .env file. Automatically reads Azure credentials and settings from environment.
 - **`create_memory_store(cosmos_db_database, cosmos_db_container)`** - Create database and container with full-text and vector indexing
 - **`write(messages, user_id=None, thread_id=None)`** - Write memories directly to Azure Cosmos DB with automatic token counting and optional embedding generation. Optionally specify user_id and/or thread_id to organize memories by user and conversation thread.
-- **`push_stack(messages)`** - Push a conversation turn (2 messages) onto the client-side memory stack for quick access without database writes
-- **`get_stack(k=None)`** - Retrieve the last k conversation turns from the client-side stack. If k is not specified, returns the entire stack.
-- **`pop_stack()`** - Remove and return the most recently added element from the memory stack.
-- **`write_stack(user_id=None, thread_id=None)`** - Write newly accumulated items from memory stack to Azure Cosmos DB.
-- **`clear_stack()`** - Clear the client-side memory stack after committing or when starting a new conversation
+- **`push_stack(messages, user_id, thread_id)`** - Push a conversation turn (2 messages) onto the client-side memory stack for a specific user and thread. Requires both user_id and thread_id parameters.
+- **`get_stack(user_id, thread_id, k=None)`** - Retrieve the last k conversation turns from the client-side stack for a specific user and thread. If k is not specified, returns the entire stack for that user/thread.
+- **`pop_stack(user_id, thread_id)`** - Remove and return the most recently added element from the memory stack for a specific user and thread.
+- **`write_stack(user_id, thread_id)`** - Write newly accumulated items from memory stack to Azure Cosmos DB for a specific user and thread.
+- **`clear_stack(user_id=None, thread_id=None)`** - Clear the client-side memory stack. Clear all stacks (no params), all threads for a user (user_id only), or a specific user/thread (both params).
 - **`search(query, k, user_id=None, thread_id=None, return_details=False, return_score=False)`** - Search for semantically similar memories using vector similarity, optionally filtered by user_id and/or thread_id. Set return_score=True to include similarity scores.
 - **`get_recent(k, user_id=None, thread_id=None, return_details=False)`** - Retrieve the k most recent memories ordered by timestamp, optionally filtered by user_id and/or thread_id
 - **`get_all_by_user(user_id, return_details=False)`** - Retrieve all memories for a specific user.

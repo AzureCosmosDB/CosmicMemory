@@ -3,8 +3,10 @@ CosmicMemory - A memory management class for Azure Cosmos DB and OpenAI integrat
 """
 import json
 import uuid
+import os
 import tiktoken
 from datetime import datetime
+from dotenv import load_dotenv
 from azure.identity import DefaultAzureCredential
 from azure.cosmos import CosmosClient
 from utils.processing import generate_embedding, summarize_thread
@@ -46,8 +48,45 @@ class CosmicMemory:
         self.openai_embedding_model = None
         self.openai_embedding_dimensions = 512
         self.vector_index = True
-        self.__memory_stack = []
-        self.__stack_index = 0
+        # Nested dictionary structure: {user_id: {thread_id: {"messages": [], "stack_index": 0}}}
+        self.__memory_stack = {}
+    
+    def load_config(self, env_file=None):
+        """
+        Load configuration from environment variables or .env file.
+
+        Args:
+            env_file (str, optional): Path to .env file. If None, uses default .env in current directory.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
+        # Load environment variables from .env file
+        load_dotenv(env_file)
+        
+        # Load configuration from environment variables
+        self.subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID', self.subscription_id)
+        self.resource_group_name = os.getenv('AZURE_RESOURCE_GROUP_NAME', self.resource_group_name)
+        self.account_name = os.getenv('AZURE_COSMOS_ACCOUNT_NAME', self.account_name)
+        self.cosmos_db_endpoint = os.getenv('AZURE_COSMOS_DB_ENDPOINT', self.cosmos_db_endpoint)
+        self.cosmos_db_database = os.getenv('AZURE_COSMOS_DB_DATABASE', self.cosmos_db_database)
+        self.cosmos_db_container = os.getenv('AZURE_COSMOS_DB_CONTAINER', self.cosmos_db_container)
+        self.openai_endpoint = os.getenv('AZURE_OPENAI_ENDPOINT', self.openai_endpoint)
+        self.openai_completions_model = os.getenv('AZURE_OPENAI_COMPLETIONS_MODEL', self.openai_completions_model)
+        self.openai_embedding_model = os.getenv('AZURE_OPENAI_EMBEDDING_MODEL', self.openai_embedding_model)
+        
+        # Load numeric configuration with type conversion
+        embedding_dims = os.getenv('AZURE_OPENAI_EMBEDDING_DIMENSIONS')
+        if embedding_dims is not None:
+            self.openai_embedding_dimensions = int(embedding_dims)
+        
+        # Load boolean configuration with type conversion
+        vector_index = os.getenv('AZURE_VECTOR_INDEX')
+        if vector_index is not None:
+            self.vector_index = vector_index.lower() in ('true', '1', 'yes')
     
     def create_memory_store(self):
         """
@@ -177,18 +216,20 @@ class CosmicMemory:
             except:
                 print(f"Could not serialize data - messages: {messages}, user_id: {user_id}")
 
-    def push_stack(self, messages):
+    def push_stack(self, messages, user_id, thread_id):
         """
-        Add a list of items to the memory_stack for client-side short-term storage without writing to Azure Cosmos DB.
+        Add a conversation turn to the memory_stack for client-side short-term storage without writing to Azure Cosmos DB.
 
         Args:
             messages (list): List containing exactly 2 message objects (user and assistant turn).
+            user_id (str): User identifier for organizing the stack.
+            thread_id (str): Thread identifier for organizing the stack.
 
         Returns:
             None
 
         Raises:
-            ValueError: If messages is not a list or does not contain exactly 2 elements.
+            ValueError: If messages is not a list, does not contain exactly 2 elements, or user_id/thread_id are None.
         """
         if not isinstance(messages, list):
             raise ValueError(f"Input must be a list, got {type(messages).__name__}")
@@ -196,75 +237,162 @@ class CosmicMemory:
         if len(messages) != 2:
             raise ValueError(f"Input list must contain exactly 2 elements, got {len(messages)}")
         
-        self.__memory_stack.append(messages)
+        if user_id is None:
+            raise ValueError("user_id is required")
+        
+        if thread_id is None:
+            raise ValueError("thread_id is required")
+        
+        # Initialize user_id level if not exists
+        if user_id not in self.__memory_stack:
+            self.__memory_stack[user_id] = {}
+        
+        # Initialize thread_id level if not exists
+        if thread_id not in self.__memory_stack[user_id]:
+            self.__memory_stack[user_id][thread_id] = {
+                "messages": [],
+                "stack_index": 0
+            }
+        
+        # Append messages to the thread
+        self.__memory_stack[user_id][thread_id]["messages"].append(messages)
     
-    def write_stack(self, user_id=None, thread_id=None):
+    def write_stack(self, user_id, thread_id):
         """
         Commit new items from memory_stack to Azure Cosmos DB, starting from stack_index. Only writes items that haven't been persisted yet.
 
         Args:
-            user_id (str, optional): User identifier for all memories. Defaults to generated GUID.
-            thread_id (str, optional): Thread identifier for all memories. Defaults to generated GUID.
+            user_id (str): User identifier for the stack to write.
+            thread_id (str): Thread identifier for the stack to write.
 
         Returns:
             None
+
+        Raises:
+            ValueError: If user_id or thread_id are None, or if the specified stack doesn't exist.
         """
-        # Write items starting from stack_index + 1 (items after the last written index)
+        if user_id is None:
+            raise ValueError("user_id is required")
         
-        for i in range(self.__stack_index, len(self.__memory_stack)):
-            messages = self.__memory_stack[i]
+        if thread_id is None:
+            raise ValueError("thread_id is required")
+        
+        # Check if user_id and thread_id exist in stack
+        if user_id not in self.__memory_stack or thread_id not in self.__memory_stack[user_id]:
+            print(f"No stack found for user_id: {user_id}, thread_id: {thread_id}")
+            return
+        
+        thread_stack = self.__memory_stack[user_id][thread_id]
+        messages_list = thread_stack["messages"]
+        stack_index = thread_stack["stack_index"]
+        
+        # Write items starting from stack_index (items after the last written index)
+        for i in range(stack_index, len(messages_list)):
+            messages = messages_list[i]
             self.write(messages, user_id=user_id, thread_id=thread_id)
         
         # Update stack_index to the last index written
-        self.__stack_index = max(len(self.__memory_stack) - 1,0)
+        thread_stack["stack_index"] = max(len(messages_list) - 1, 0)
         
     
-    def get_stack(self, k=None):
+    def get_stack(self, user_id, thread_id, k=None):
         """
-        Get the last k elements from memory_stack for passing to LLM without reading from Azure Cosmos DB. If k is not specified, returns the entire memory_stack.
+        Get the last k elements from memory_stack for passing to LLM without reading from Azure Cosmos DB. If k is not specified, returns the entire memory_stack for the thread.
 
         Args:
+            user_id (str): User identifier for the stack to retrieve.
+            thread_id (str): Thread identifier for the stack to retrieve.
             k (int, optional): Number of most recent turns to retrieve. Defaults to None (returns all).
 
         Returns:
-            list: List of message turns from the stack. Each turn is a list of 2 message objects.
+            list: List of message turns from the stack. Each turn is a list of 2 message objects. Returns empty list if stack doesn't exist.
+
+        Raises:
+            ValueError: If user_id or thread_id are None.
         """
+        if user_id is None:
+            raise ValueError("user_id is required")
+        
+        if thread_id is None:
+            raise ValueError("thread_id is required")
+        
+        # Check if user_id and thread_id exist in stack
+        if user_id not in self.__memory_stack or thread_id not in self.__memory_stack[user_id]:
+            return []
+        
+        messages_list = self.__memory_stack[user_id][thread_id]["messages"]
+        
         if k is None:
-            return self.__memory_stack
-        return self.__memory_stack[-k:] if k > 0 else []
+            return messages_list
+        return messages_list[-k:] if k > 0 else []
     
-    def pop_stack(self):
+    def pop_stack(self, user_id, thread_id):
         """
-        Remove and return the most recently added element from memory_stack.
+        Remove and return the most recently added element from memory_stack for a specific user and thread.
 
         Args:
-            None
+            user_id (str): User identifier for the stack.
+            thread_id (str): Thread identifier for the stack.
 
         Returns:
-            list: Most recent turn (list of 2 message objects), or None if stack is empty.
+            list: Most recent turn (list of 2 message objects), or None if stack is empty or doesn't exist.
+
+        Raises:
+            ValueError: If user_id or thread_id are None.
         """
-        if len(self.__memory_stack) > 0:
-            result = self.__memory_stack.pop()
+        if user_id is None:
+            raise ValueError("user_id is required")
+        
+        if thread_id is None:
+            raise ValueError("thread_id is required")
+        
+        # Check if user_id and thread_id exist in stack
+        if user_id not in self.__memory_stack or thread_id not in self.__memory_stack[user_id]:
+            return None
+        
+        thread_stack = self.__memory_stack[user_id][thread_id]
+        messages_list = thread_stack["messages"]
+        
+        if len(messages_list) > 0:
+            result = messages_list.pop()
             
             # Update stack_index if necessary
-            if len(self.__memory_stack) - 1 < self.__stack_index:
-                self.__stack_index = len(self.__memory_stack) - 1
+            if len(messages_list) - 1 < thread_stack["stack_index"]:
+                thread_stack["stack_index"] = len(messages_list) - 1
             
             return result
         return None
     
-    def clear_stack(self):
+    def clear_stack(self, user_id=None, thread_id=None):
         """
         Clear the client-side memory_stack after committing or when starting a new conversation.
+        If user_id and thread_id are specified, clears only that specific thread's stack.
+        If only user_id is specified, clears all threads for that user.
+        If neither is specified, clears the entire stack.
 
         Args:
-            None
+            user_id (str, optional): User identifier. Defaults to None (clears all).
+            thread_id (str, optional): Thread identifier. Defaults to None (clears all threads for user).
 
         Returns:
             None
         """
-        self.__memory_stack = []
-        self.__stack_index = 0
+        if user_id is None and thread_id is None:
+            # Clear entire stack
+            self.__memory_stack = {}
+        elif user_id is not None and thread_id is None:
+            # Clear all threads for a specific user
+            if user_id in self.__memory_stack:
+                del self.__memory_stack[user_id]
+        elif user_id is not None and thread_id is not None:
+            # Clear specific thread for a user
+            if user_id in self.__memory_stack and thread_id in self.__memory_stack[user_id]:
+                del self.__memory_stack[user_id][thread_id]
+                # If user has no more threads, remove user entry
+                if len(self.__memory_stack[user_id]) == 0:
+                    del self.__memory_stack[user_id]
+        else:
+            raise ValueError("Cannot specify thread_id without user_id")
     
     def search(self, query, k, user_id=None, thread_id=None, return_details=False, return_score=False):
         """

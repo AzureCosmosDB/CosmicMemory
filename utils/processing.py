@@ -97,7 +97,6 @@ def summarize_thread(thread_memories, thread_id, user_id, openai_endpoint, opena
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Summarize this conversation thread:\n\n{conversation_text}"}
             ],
-            temperature=0.3,
             response_format={"type": "json_object"})
         
         # Parse the summary response
