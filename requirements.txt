@@ -8,3 +8,6 @@ openai>=1.0.0
 
 # Token counting
 tiktoken>=0.5.0
+
+# Configuration management
+python-dotenv>=1.0.0
