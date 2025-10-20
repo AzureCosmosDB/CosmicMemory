@@ -379,7 +379,7 @@ memory.get_id("document-id-here")
 
 ### Summarize Conversations
 
-#### Generate Summary
+#### Generate Summary (Method 1: Manual Retrieval)
 
 Create an AI-powered summary of a conversation thread with key facts extraction:
 
@@ -403,6 +403,23 @@ summary = memory.summarize(
     write=True
 )
 ```
+
+#### Generate Summary (Method 2: Automatic Retrieval)
+
+Use the convenience method `summarize_thread()` to retrieve and summarize in one call:
+
+```python
+# Generate summary without persisting (preview mode)
+summary = memory.summarize_thread("thread-guid-here", write=False)
+
+# Generate and persist summary to Azure Cosmos DB
+summary = memory.summarize_thread("thread-guid-here", write=True)
+```
+
+**Benefits:** 
+- Automatically retrieves all thread memories from Cosmos DB
+- Automatically extracts `user_id` from the first memory document
+- Simplifies the workflow to a single method call
 
 **Sample Output:**
 
@@ -550,9 +567,11 @@ Leverage Azure Cosmos DB's powerful search capabilities for both memories and su
 
 Optimize long-running conversations with AI-generated summaries:
 
-1. **Generate & Persist** - At the end of conversation threads or sessions, use `summarize()` with `write=True` to create and store thread summaries with extracted key facts
+1. **Generate & Persist** - At the end of conversation threads or sessions, use `summarize_thread()` or `summarize()` with `write=True` to create and store thread summaries with extracted key facts
+   - Use `summarize_thread(thread_id, write=True)` for automatic retrieval and summarization in one call
+   - Use `summarize(thread_memories, thread_id, user_id, write=True)` for manual control over memories
 2. **Resume Sessions** - When resuming a conversation, retrieve the summary using `get_summary()` to restore context without loading entire conversation histories
-3. **Preview Mode** - Use `summarize()` with `write=False` to generate summaries on-demand without database writes, useful for testing or temporary previews
+3. **Preview Mode** - Use `summarize_thread(thread_id, write=False)` or `summarize(..., write=False)` to generate summaries on-demand without database writes, useful for testing or temporary previews
 
 This pattern reduces token consumption in LLM prompts while maintaining conversational continuity across sessions.
 
@@ -575,6 +594,7 @@ This pattern reduces token consumption in LLM prompts while maintaining conversa
 - **`get_all_by_thread(thread_id, return_details=False)`** - Retrieve all memories for a specific conversation thread.
 - **`get_id(memory_id)`** - Retrieve a specific memory by its document id.
 - **`summarize(thread_memories, thread_id, user_id, write=False)`** - Generate an AI-powered summary of conversation thread with key facts extraction. When write=True, generates embeddings and persists to Azure Cosmos DB. When write=False, returns summary without embeddings or database writes (preview mode).
+- **`summarize_thread(thread_id, write=False)`** - Convenience method that automatically retrieves all memories for a thread and generates a summary. Automatically extracts user_id from the first memory document. When write=True, persists summary to Cosmos DB.
 - **`get_summary(thread_id, return_details=False)`** - Retrieve a previously generated summary for a conversation thread. When return_details=True, includes thread_id, user_id, token_count, and last_updated fields.
 - **`delete(memory_id)`** - Delete a memory by its document id.
 

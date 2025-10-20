@@ -110,6 +110,7 @@ def summarize_thread(thread_memories, thread_id, user_id, openai_endpoint, opena
         
         # Create the base summary document
         summary_document = {
+            "id": str(uuid.uuid4()),
             "thread_id": thread_id,
             "user_id": user_id,
             "type": "summary",
@@ -120,10 +121,7 @@ def summarize_thread(thread_memories, thread_id, user_id, openai_endpoint, opena
         }
         
         # If write is True, add embedding and id for database persistence
-        if write:
-            # Add GUID for database id
-            summary_document["id"] = str(uuid.uuid4())
-            
+        if write:          
             # Combine summary and facts for embedding
             embedding_text = summary_data.get("summary", "") + " " + " ".join(summary_data.get("facts", []))
             

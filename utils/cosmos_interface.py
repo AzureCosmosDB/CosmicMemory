@@ -550,7 +550,7 @@ def get_summary_by_thread(thread_id, cosmos_db_endpoint, cosmos_db_database, cos
         database = client.get_database_client(cosmos_db_database)
         container = database.get_container_client(cosmos_db_container)
         
-        # Build query based on return_details flag
+        # Build query based on return_details flag, get the latest summary
         if return_details:
             query = """
                 SELECT TOP 1 c.summary, c.facts, c.thread_id, c.user_id, c.token_count, c.last_updated

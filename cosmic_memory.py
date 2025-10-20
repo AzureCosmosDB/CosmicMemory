@@ -5,6 +5,8 @@ import json
 import uuid
 import tiktoken
 from datetime import datetime
+from azure.identity import DefaultAzureCredential
+from azure.cosmos import CosmosClient
 from utils.processing import generate_embedding, summarize_thread
 from utils.cosmos_interface import (
     create_container,
@@ -461,6 +463,79 @@ class CosmicMemory:
             return summary_document
         except Exception as e:
             print(f"summarize failed: {e}")
+            return None
+    
+    def summarize_thread(self, thread_id, write=False):
+        """
+        Retrieve all memories for a thread and generate a summary using Azure OpenAI.
+
+        Args:
+            thread_id (str): Thread identifier to retrieve and summarize.
+            write (bool, optional): If True, persist summary to Cosmos DB. Defaults to False.
+
+        Returns:
+            dict: Summary document with summary text and extracted facts, or None if generation failed.
+        """
+        try:
+            # Retrieve all memories for this thread
+            thread_memories = get_memories_by_thread(
+                thread_id,
+                self.cosmos_db_endpoint,
+                self.cosmos_db_database,
+                self.cosmos_db_container,
+                return_details=False
+            )
+            
+            if not thread_memories or len(thread_memories) == 0:
+                print(f"No memories found for thread_id: {thread_id}")
+                return None
+            
+            # Get user_id by querying the first document for this thread
+            credential = DefaultAzureCredential()
+            client = CosmosClient(url=self.cosmos_db_endpoint, credential=credential)
+            database = client.get_database_client(self.cosmos_db_database)
+            container = database.get_container_client(self.cosmos_db_container)
+            
+            # Query to get user_id from the first memory document
+            query = """
+                SELECT TOP 1 c.user_id
+                FROM c
+                WHERE c.thread_id = @thread_id AND c.type = 'memory'
+                ORDER BY c.started_at ASC
+            """
+            parameters = [{"name": "@thread_id", "value": thread_id}]
+            results = list(container.query_items(query=query, parameters=parameters, enable_cross_partition_query=False))
+            
+            user_id = results[0]['user_id'] if results and 'user_id' in results[0] else thread_id
+            
+            # Generate summary
+            summary_document = summarize_thread(
+                thread_memories,
+                thread_id,
+                user_id,
+                self.openai_endpoint,
+                self.openai_completions_model,
+                self.openai_embedding_model,
+                self.openai_embedding_dimensions,
+                write
+            )
+            
+            # Insert into Cosmos DB if write is True
+            if write and summary_document:
+                result = insert_memory(
+                    summary_document,
+                    self.cosmos_db_endpoint,
+                    self.cosmos_db_database,
+                    self.cosmos_db_container
+                )
+                if result:
+                    print(f"Summary successfully inserted into Cosmos DB")
+                else:
+                    print(f"Failed to insert summary into Cosmos DB")
+            
+            return summary_document
+        except Exception as e:
+            print(f"summarize_thread failed: {e}")
             return None
     
     def get_summary(self, thread_id, return_details=False):
