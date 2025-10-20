@@ -7,6 +7,17 @@ from azure.cosmos.exceptions import CosmosResourceExistsError
 from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
 
+def _strip_token_counts(messages):
+    """
+    Helper function to remove token_count from message objects.
+    Returns a new list with token_count removed from each message.
+    """
+    cleaned_messages = []
+    for msg in messages:
+        cleaned_msg = {k: v for k, v in msg.items() if k != 'token_count'}
+        cleaned_messages.append(cleaned_msg)
+    return cleaned_messages
+
 
 def create_container(subscription_id, resource_group_name, account_name, cosmos_db_database, cosmos_db_container):
     """
@@ -254,6 +265,12 @@ def semantic_search(query_embedding, k, cosmos_db_endpoint, cosmos_db_database, 
             parameters=parameters,
             enable_cross_partition_query=enable_cross_partition))
         
+        # Strip token_count from messages if return_details is False
+        if not return_details:
+            for result in results:
+                if 'messages' in result:
+                    result['messages'] = _strip_token_counts(result['messages'])
+        
         return results
     except Exception as e:
         print(f"Warning: Failed to perform semantic search - {e}")
@@ -263,6 +280,7 @@ def semantic_search(query_embedding, k, cosmos_db_endpoint, cosmos_db_database, 
 def recent_memories(k, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container, user_id=None, thread_id=None, return_details=False):
     """
     Retrieve the k most recent memory documents ordered by timestamp.
+    Returns a list of lists, where each inner list contains two message objects (user and assistant) representing one turn.
     """
     try:
         # Get Azure credential
@@ -277,11 +295,8 @@ def recent_memories(k, cosmos_db_endpoint, cosmos_db_database, cosmos_db_contain
         database = client.get_database_client(cosmos_db_database)
         container = database.get_container_client(cosmos_db_container)
         
-        # Build SELECT clause based on return_details parameter
-        select_clause = "c.id, c.user_id, c.started_at, c.ended_at, c.messages" if return_details else "c.messages"
-        
         # Build WHERE clause based on optional filters
-        where_conditions = []
+        where_conditions = ["c.type = 'memory'"]
         parameters = [{"name": "@k", "value": k}]
         
         if user_id is not None:
@@ -292,17 +307,23 @@ def recent_memories(k, cosmos_db_endpoint, cosmos_db_database, cosmos_db_contain
             where_conditions.append("c.thread_id = @thread_id")
             parameters.append({"name": "@thread_id", "value": thread_id})
         
-        where_clause = ""
-        if where_conditions:
-            where_clause = "WHERE " + " AND ".join(where_conditions)
+        where_clause = "WHERE " + " AND ".join(where_conditions)
         
-        # Query for most recent memories
-        query = f"""
-            SELECT TOP @k {select_clause}
-            FROM c
-            {where_clause}
-            ORDER BY c.started_at DESC
-        """
+        # Build SELECT clause based on return_details parameter
+        if return_details:
+            query = f"""
+                SELECT TOP @k c.messages, c.started_at, c.ended_at
+                FROM c
+                {where_clause}
+                ORDER BY c.started_at DESC
+            """
+        else:
+            query = f"""
+                SELECT TOP @k c.messages
+                FROM c
+                {where_clause}
+                ORDER BY c.started_at DESC
+            """
         
         # Execute query
         # Use partition key if thread_id is specified for better performance
@@ -312,7 +333,24 @@ def recent_memories(k, cosmos_db_endpoint, cosmos_db_database, cosmos_db_contain
             parameters=parameters,
             enable_cross_partition_query=enable_cross_partition))
         
-        return results
+        # Transform results into list of lists format
+        # Each document has a 'messages' array with 2 elements (user and assistant)
+        formatted_results = []
+        for result in results:
+            if 'messages' in result and len(result['messages']) == 2:
+                if return_details:
+                    # Include messages with token counts, plus timestamps
+                    turn_data = result['messages'].copy()
+                    turn_data.append({
+                        "started_at": result.get('started_at'),
+                        "ended_at": result.get('ended_at')
+                    })
+                    formatted_results.append(turn_data)
+                else:
+                    # Strip token_count from messages
+                    formatted_results.append(_strip_token_counts(result['messages']))
+        
+        return formatted_results
     except Exception as e:
         print(f"Warning: Failed to retrieve recent memories - {e}")
         return None
@@ -362,6 +400,8 @@ def remove_item(item_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_conta
 def get_memories_by_user(user_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container, return_details=False):
     """
     Retrieve all memory documents for a specific user.
+    Returns a list of lists, where each inner list contains two message objects (user and assistant) representing one turn.
+    If return_details=True, each turn list also includes started_at, ended_at timestamps and token counts are included in messages.
     """
     try:
         # Get Azure credential
@@ -377,30 +417,20 @@ def get_memories_by_user(user_id, cosmos_db_endpoint, cosmos_db_database, cosmos
         container = database.get_container_client(cosmos_db_container)
         
         # Build SELECT clause based on return_details parameter
-        select_clause = "c.id, c.user_id, c.started_at, c.ended_at, c.messages" if return_details else "c.messages"
-        
-        # Query for all memories for this user
-        query = f"""
-            SELECT {select_clause}
-            FROM c
-            WHERE c.user_id = @user_id
-            ORDER BY c.started_at DESC
-        """
-        
-        parameters = [
-            {"name": "@user_id", "value": user_id}
-        ]
-        
-        # Execute query
-        results = list(container.query_items(
-            query=query,
-            parameters=parameters,
-            enable_cross_partition_query=True))
-        
-        return results
-    except Exception as e:
-        print(f"Warning: Failed to retrieve memories by user - {e}")
-        return None
+        if return_details:
+            query = """
+                SELECT c.messages, c.started_at, c.ended_at
+                FROM c
+                WHERE c.user_id = @user_id AND c.type = 'memory'
+                ORDER BY c.started_at ASC
+            """
+        else:
+            query = """
+                SELECT c.messages
+                FROM c
+                WHERE c.user_id = @user_id AND c.type = 'memory'
+                ORDER BY c.started_at ASC
+            """
         
         parameters = [
             {"name": "@user_id", "value": user_id}
@@ -412,7 +442,24 @@ def get_memories_by_user(user_id, cosmos_db_endpoint, cosmos_db_database, cosmos
             parameters=parameters,
             enable_cross_partition_query=True))
         
-        return results
+        # Transform results into list of lists format
+        # Each document has a 'messages' array with 2 elements (user and assistant)
+        formatted_results = []
+        for result in results:
+            if 'messages' in result and len(result['messages']) == 2:
+                if return_details:
+                    # Include messages with token counts, plus timestamps
+                    turn_data = result['messages'].copy()
+                    turn_data.append({
+                        "started_at": result.get('started_at'),
+                        "ended_at": result.get('ended_at')
+                    })
+                    formatted_results.append(turn_data)
+                else:
+                    # Strip token_count from messages
+                    formatted_results.append(_strip_token_counts(result['messages']))
+        
+        return formatted_results
     except Exception as e:
         print(f"Warning: Failed to retrieve memories by user - {e}")
         return None
@@ -421,6 +468,8 @@ def get_memories_by_user(user_id, cosmos_db_endpoint, cosmos_db_database, cosmos
 def get_memories_by_thread(thread_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container, return_details=False):
     """
     Retrieve all memory documents for a specific thread.
+    Returns a list of lists, where each inner list contains two message objects (user and assistant) representing one turn.
+    If return_details=True, each turn list also includes started_at, ended_at timestamps and token counts are included in messages.
     """
     try:
         # Get Azure credential
@@ -436,15 +485,20 @@ def get_memories_by_thread(thread_id, cosmos_db_endpoint, cosmos_db_database, co
         container = database.get_container_client(cosmos_db_container)
         
         # Build SELECT clause based on return_details parameter
-        select_clause = "c.id, c.user_id, c.started_at, c.ended_at, c.messages" if return_details else "c.messages"
-        
-        # Query for all memories for this thread
-        query = f"""
-            SELECT {select_clause}
-            FROM c
-            WHERE c.thread_id = @thread_id
-            ORDER BY c.started_at DESC
-        """
+        if return_details:
+            query = """
+                SELECT c.messages, c.started_at, c.ended_at
+                FROM c
+                WHERE c.thread_id = @thread_id AND c.type = 'memory'
+                ORDER BY c.started_at ASC
+            """
+        else:
+            query = """
+                SELECT c.messages
+                FROM c
+                WHERE c.thread_id = @thread_id AND c.type = 'memory'
+                ORDER BY c.started_at ASC
+            """
         
         parameters = [
             {"name": "@thread_id", "value": thread_id}
@@ -456,7 +510,24 @@ def get_memories_by_thread(thread_id, cosmos_db_endpoint, cosmos_db_database, co
             parameters=parameters,
             enable_cross_partition_query=False))
         
-        return results
+        # Transform results into list of lists format
+        # Each document has a 'messages' array with 2 elements (user and assistant)
+        formatted_results = []
+        for result in results:
+            if 'messages' in result and len(result['messages']) == 2:
+                if return_details:
+                    # Include messages with token counts, plus timestamps
+                    turn_data = result['messages'].copy()
+                    turn_data.append({
+                        "started_at": result.get('started_at'),
+                        "ended_at": result.get('ended_at')
+                    })
+                    formatted_results.append(turn_data)
+                else:
+                    # Strip token_count from messages
+                    formatted_results.append(_strip_token_counts(result['messages']))
+        
+        return formatted_results
     except Exception as e:
         print(f"Warning: Failed to retrieve memories by thread - {e}")
         return None

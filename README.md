@@ -606,6 +606,10 @@ All Azure operations use **DefaultAzureCredential** for authentication, supporti
 
 ## Future Improvements
 
+- **Async Operations** - Add asynchronous versions of all I/O-bound operations (database writes, searches, embedding generation) to improve performance and enable concurrent processing of multiple memory operations.
+
+- **Key-Based Authentication Support** - Add support for connection strings and access keys as an alternative to Entra ID (formerly Azure AD) authentication, providing an easier setup path for PoCs, development environments, and users new to Azure and Cosmos DB.
+
 - **Full-Text Search with FullTextContains** - Enable keyword-based memory retrieval using Azure Cosmos DB's full-text search capabilities to complement semantic search with text matching.
 
 - **Hybrid Search Retrieval** - Combine vector similarity search with full-text keyword search using Reciprocal Rank Fusion (RRF) to improve retrieval accuracy by leveraging both semantic understanding and term scoring.

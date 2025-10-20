@@ -24,7 +24,15 @@ class CosmicMemory:
     """
     
     def __init__(self):
-        """Initialize the CosmicMemory class with default None values."""
+        """
+        Initialize the CosmicMemory class with default None values.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
         self.subscription_id = None
         self.resource_group_name = None
         self.account_name = None
@@ -42,7 +50,33 @@ class CosmicMemory:
     def create_memory_store(self):
         """
         Create Azure Cosmos DB database and container with full-text and vector indexing policies.
+
+        Args:
+            None
+
+        Returns:
+            bool: True if container creation succeeded, False otherwise.
+
+        Raises:
+            ValueError: If any required configuration parameter is None.
         """
+        # Validate all required parameters are set
+        required_params = {
+            'subscription_id': self.subscription_id,
+            'resource_group_name': self.resource_group_name,
+            'account_name': self.account_name,
+            'cosmos_db_database': self.cosmos_db_database,
+            'cosmos_db_container': self.cosmos_db_container
+        }
+        
+        missing_params = [name for name, value in required_params.items() if value is None]
+        
+        if missing_params:
+            raise ValueError(
+                f"Cannot create memory store. The following required parameters are not set: {', '.join(missing_params)}. "
+                f"Please set these parameters before calling create_memory_store()."
+            )
+        
         try:
             result = create_container(
                 self.subscription_id,
@@ -59,6 +93,14 @@ class CosmicMemory:
     def write(self, messages, user_id=None, thread_id=None):
         """
         Store conversation messages with automatic token counting and optional embeddings.
+
+        Args:
+            messages (list): List of message objects with role and content fields.
+            user_id (str, optional): User identifier. Defaults to generated GUID.
+            thread_id (str, optional): Thread identifier. Defaults to generated GUID.
+
+        Returns:
+            None
         """
         try:
             # Generate GUID for user_id if not provided
@@ -136,6 +178,15 @@ class CosmicMemory:
     def push_stack(self, messages):
         """
         Add a list of items to the memory_stack for client-side short-term storage without writing to Azure Cosmos DB.
+
+        Args:
+            messages (list): List containing exactly 2 message objects (user and assistant turn).
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If messages is not a list or does not contain exactly 2 elements.
         """
         if not isinstance(messages, list):
             raise ValueError(f"Input must be a list, got {type(messages).__name__}")
@@ -148,6 +199,13 @@ class CosmicMemory:
     def write_stack(self, user_id=None, thread_id=None):
         """
         Commit new items from memory_stack to Azure Cosmos DB, starting from stack_index. Only writes items that haven't been persisted yet.
+
+        Args:
+            user_id (str, optional): User identifier for all memories. Defaults to generated GUID.
+            thread_id (str, optional): Thread identifier for all memories. Defaults to generated GUID.
+
+        Returns:
+            None
         """
         # Write items starting from stack_index + 1 (items after the last written index)
         
@@ -162,6 +220,12 @@ class CosmicMemory:
     def get_stack(self, k=None):
         """
         Get the last k elements from memory_stack for passing to LLM without reading from Azure Cosmos DB. If k is not specified, returns the entire memory_stack.
+
+        Args:
+            k (int, optional): Number of most recent turns to retrieve. Defaults to None (returns all).
+
+        Returns:
+            list: List of message turns from the stack. Each turn is a list of 2 message objects.
         """
         if k is None:
             return self.__memory_stack
@@ -170,6 +234,12 @@ class CosmicMemory:
     def pop_stack(self):
         """
         Remove and return the most recently added element from memory_stack.
+
+        Args:
+            None
+
+        Returns:
+            list: Most recent turn (list of 2 message objects), or None if stack is empty.
         """
         if len(self.__memory_stack) > 0:
             result = self.__memory_stack.pop()
@@ -184,6 +254,12 @@ class CosmicMemory:
     def clear_stack(self):
         """
         Clear the client-side memory_stack after committing or when starting a new conversation.
+
+        Args:
+            None
+
+        Returns:
+            None
         """
         self.__memory_stack = []
         self.__stack_index = 0
@@ -191,6 +267,17 @@ class CosmicMemory:
     def search(self, query, k, user_id=None, thread_id=None, return_details=False, return_score=False):
         """
         Search memories using semantic similarity based on query text.
+
+        Args:
+            query (str): Search query text.
+            k (int): Number of most similar results to return.
+            user_id (str, optional): Filter results by user. Defaults to None.
+            thread_id (str, optional): Filter results by thread. Defaults to None.
+            return_details (bool, optional): Include metadata fields. Defaults to False.
+            return_score (bool, optional): Include similarity scores. Defaults to False.
+
+        Returns:
+            list: List of matching memory documents, or None if search failed.
         """
         try:
             # Generate embedding for the query
@@ -225,8 +312,22 @@ class CosmicMemory:
     def get_recent(self, k, user_id=None, thread_id=None, return_details=False):
         """
         Retrieve the most recent memories ordered by timestamp.
+        Either user_id or thread_id must be provided.
+
+        Args:
+            k (int): Number of most recent memories to retrieve.
+            user_id (str, optional): Filter by user. Defaults to None.
+            thread_id (str, optional): Filter by thread. Defaults to None.
+            return_details (bool, optional): Include token counts and timestamps. Defaults to False.
+
+        Returns:
+            list: List of lists, each containing 2 message objects (one turn), or None if retrieval failed.
+
+        Raises:
+            ValueError: If both user_id and thread_id are None.
         """
         try:
+            
             # Get most recent memories
             results = recent_memories(
                 k,
@@ -246,6 +347,13 @@ class CosmicMemory:
     def get_all_by_user(self, user_id, return_details=False):
         """
         Retrieve all memories for a specific user.
+
+        Args:
+            user_id (str): User identifier.
+            return_details (bool, optional): Include token counts and timestamps. Defaults to False.
+
+        Returns:
+            list: List of lists, each containing 2 message objects (one turn), or None if retrieval failed.
         """
         try:
             # Get all memories for this user
@@ -265,6 +373,13 @@ class CosmicMemory:
     def get_all_by_thread(self, thread_id, return_details=False):
         """
         Retrieve all memories for a specific conversation thread.
+
+        Args:
+            thread_id (str): Thread identifier.
+            return_details (bool, optional): Include token counts and timestamps. Defaults to False.
+
+        Returns:
+            list: List of lists, each containing 2 message objects (one turn), or None if retrieval failed.
         """
         try:
             # Get all memories for this thread
@@ -284,6 +399,12 @@ class CosmicMemory:
     def get_id(self, memory_id):
         """
         Retrieve a specific memory by its document ID.
+
+        Args:
+            memory_id (str): Unique document identifier.
+
+        Returns:
+            dict: Memory document, or None if not found.
         """
         try:
             # Get the memory by ID
@@ -303,6 +424,14 @@ class CosmicMemory:
         """
         Generate a summary of thread memories using Azure OpenAI.
 
+        Args:
+            thread_memories (list): List of memory documents to summarize.
+            thread_id (str): Thread identifier.
+            user_id (str): User identifier.
+            write (bool, optional): If True, persist summary to Cosmos DB. Defaults to False.
+
+        Returns:
+            dict: Summary document with summary text and extracted facts, or None if generation failed.
         """
         try:
             summary_document = summarize_thread(
@@ -337,6 +466,13 @@ class CosmicMemory:
     def get_summary(self, thread_id, return_details=False):
         """
         Retrieve the summary document for a specific thread from Cosmos DB.
+
+        Args:
+            thread_id (str): Thread identifier.
+            return_details (bool, optional): Include metadata (thread_id, user_id, token_count, last_updated). Defaults to False.
+
+        Returns:
+            dict: Summary document with summary and facts, or None if not found.
         """
         try:
             result = get_summary_by_thread(
@@ -354,6 +490,12 @@ class CosmicMemory:
     def delete(self, memory_id):
         """
         Remove a memory document from Azure Cosmos DB by its ID.
+
+        Args:
+            memory_id (str): Unique document identifier to delete.
+
+        Returns:
+            None
         """
         try:
             print(f"Arguments - memory_id: {memory_id}")
