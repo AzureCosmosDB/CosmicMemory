@@ -50,7 +50,7 @@ CosmicMemory simplifies memory management for AI agents by providing dual storag
 - **Batch Write Stack** 📦 - Commit multiple accumulated memories from RAM to an Azure Cosmos DB container 
 - **Database/Container Creation** 🏗️ - Automatically create Azure Cosmos DB database and container with full-text and vector indexing policies
 
-### Advanced Search & Retrieval
+### Advanced Search & Retrieval in Azure Cosmos DB
 For memories written to Azure Cosmos DB, take advantage of advanced and semantic memories search capabilities:
 - **Semantic Search** 🔍 - Find contextually relevant memories using vector similarity and Azure OpenAI embeddings
 - **Recent Memories** 📅 - Retrieve the most recent interactions chronologically from persistent storage
@@ -379,34 +379,36 @@ memory.get_id("document-id-here")
 
 ### Summarize Conversations
 
-#### Generate Summary (Method 1: Manual Retrieval)
+#### Summarize In-Memory Stack (`summarize_stack`)
 
-Create an AI-powered summary of a conversation thread with key facts extraction:
+Generate a summary of conversation turns stored in the client-side memory stack (RAM):
 
 ```python
-# Get all memories for a thread
-thread_memories = memory.get_all_by_thread("thread-guid-here")
+# Get memories from the stack
+stack_memories = memory.get_stack()
 
 # Generate summary without persisting to database (preview mode)
-summary = memory.summarize(
-    thread_memories,
+summary = memory.summarize_stack(
+    stack_memories,
     thread_id="thread-guid-here",
     user_id="user-123",
     write=False
 )
 
 # Generate and persist summary to Azure Cosmos DB
-summary = memory.summarize(
-    thread_memories,
+summary = memory.summarize_stack(
+    stack_memories,
     thread_id="thread-guid-here",
     user_id="user-123",
     write=True
 )
 ```
 
-#### Generate Summary (Method 2: Automatic Retrieval)
+**Use Case:** Summarize conversations currently held in RAM before writing to the database, useful for session-based summarization.
 
-Use the convenience method `summarize_thread()` to retrieve and summarize in one call:
+#### Summarize Database Thread (`summarize_thread`)
+
+Automatically retrieve and summarize an entire conversation thread stored in Azure Cosmos DB:
 
 ```python
 # Generate summary without persisting (preview mode)
@@ -415,6 +417,8 @@ summary = memory.summarize_thread("thread-guid-here", write=False)
 # Generate and persist summary to Azure Cosmos DB
 summary = memory.summarize_thread("thread-guid-here", write=True)
 ```
+
+**Use Case:** Summarize complete conversation threads already persisted to Cosmos DB. Automatically retrieves all thread memories and extracts user_id.
 
 **Sample Output:**
 
@@ -562,11 +566,11 @@ Leverage Azure Cosmos DB's powerful search capabilities for both memories and su
 
 Optimize long-running conversations with AI-generated summaries:
 
-1. **Generate & Persist** - At the end of conversation threads or sessions, use `summarize_thread()` or `summarize()` with `write=True` to create and store thread summaries with extracted key facts
-   - Use `summarize_thread(thread_id, write=True)` for automatic retrieval and summarization in one call
-   - Use `summarize(thread_memories, thread_id, user_id, write=True)` for manual control over memories
+1. **Generate & Persist** - At the end of conversation threads or sessions, generate and store thread summaries with extracted key facts:
+   - Use `summarize_stack(stack_memories, thread_id, user_id, write=True)` to summarize in-memory conversations from the client-side stack
+   - Use `summarize_thread(thread_id, write=True)` to automatically retrieve and summarize entire threads already stored in Cosmos DB
 2. **Resume Sessions** - When resuming a conversation, retrieve the summary using `get_summary()` to restore context without loading entire conversation histories
-3. **Preview Mode** - Use `summarize_thread(thread_id, write=False)` or `summarize(..., write=False)` to generate summaries on-demand without database writes, useful for testing or temporary previews
+3. **Preview Mode** - Use `write=False` with either method to generate summaries on-demand without database writes, useful for testing or temporary previews
 
 This pattern reduces token consumption in LLM prompts while maintaining conversational continuity across sessions.
 
@@ -588,8 +592,8 @@ This pattern reduces token consumption in LLM prompts while maintaining conversa
 - **`get_all_by_user(user_id, return_details=False)`** - Retrieve all memories for a specific user.
 - **`get_all_by_thread(thread_id, return_details=False)`** - Retrieve all memories for a specific conversation thread.
 - **`get_id(memory_id)`** - Retrieve a specific memory by its document id.
-- **`summarize(thread_memories, thread_id, user_id, write=False)`** - Generate an AI-powered summary of conversation thread with key facts extraction. When write=True, generates embeddings and persists to Azure Cosmos DB. When write=False, returns summary without embeddings or database writes (preview mode).
-- **`summarize_thread(thread_id, write=False)`** - Convenience method that automatically retrieves all memories for a thread and generates a summary. Automatically extracts user_id from the first memory document. When write=True, persists summary to Cosmos DB.
+- **`summarize_stack(thread_memories, thread_id, user_id, write=False)`** - Generate an AI-powered summary of conversation turns stored in the client-side memory stack (RAM). Accepts list of lists format where each inner list contains 2 message objects. When write=True, generates embeddings and persists to Azure Cosmos DB.
+- **`summarize_thread(thread_id, write=False)`** - Automatically retrieve all memories for a thread from Cosmos DB and generate a summary. Automatically extracts user_id from the first memory document. When write=True, persists summary to Cosmos DB.
 - **`get_summary(thread_id, return_details=False)`** - Retrieve a previously generated summary for a conversation thread. When return_details=True, includes thread_id, user_id, token_count, and last_updated fields.
 - **`delete(memory_id)`** - Delete a memory by its document id.
 

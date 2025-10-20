@@ -422,12 +422,13 @@ class CosmicMemory:
             print(f"get_id failed: {e}")
             return None
     
-    def summarize(self, thread_memories, thread_id, user_id, write=False):
+    def summarize_stack(self, thread_memories, thread_id, user_id, write=False):
         """
         Generate a summary of thread memories using Azure OpenAI.
+        Accepts memories in stack format (list of lists, where each inner list contains 2 message objects).
 
         Args:
-            thread_memories (list): List of memory documents to summarize.
+            thread_memories (list): List of conversation turns to summarize. Each turn is a list of 2 message objects.
             thread_id (str): Thread identifier.
             user_id (str): User identifier.
             write (bool, optional): If True, persist summary to Cosmos DB. Defaults to False.
@@ -462,7 +463,7 @@ class CosmicMemory:
             
             return summary_document
         except Exception as e:
-            print(f"summarize failed: {e}")
+            print(f"summarize_stack failed: {e}")
             return None
     
     def summarize_thread(self, thread_id, write=False):
