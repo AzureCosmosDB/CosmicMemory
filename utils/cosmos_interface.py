@@ -178,19 +178,17 @@ def create_container(subscription_id, resource_group_name, account_name, cosmos_
         return False
 
 
-def insert_memory(memory_document, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container):
+def insert_memory(client, memory_document, cosmos_db_database, cosmos_db_container):
     """
     Insert a memory document into Cosmos DB container.
+    
+    Args:
+        client: CosmosClient instance to use for the operation
+        memory_document: The memory document to insert
+        cosmos_db_database: Name of the Cosmos DB database
+        cosmos_db_container: Name of the Cosmos DB container
     """
     try:
-        # Get Azure credential
-        credential = DefaultAzureCredential()
-        
-        # Create Cosmos DB client with Entra ID authentication
-        client = CosmosClient(
-            url=cosmos_db_endpoint,
-            credential=credential)
-        
         # Get database and container references
         database = client.get_database_client(cosmos_db_database)
         container = database.get_container_client(cosmos_db_container)
@@ -203,19 +201,22 @@ def insert_memory(memory_document, cosmos_db_endpoint, cosmos_db_database, cosmo
         return None
 
 
-def semantic_search(query_embedding, k, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container, user_id=None, thread_id=None, return_details=False, return_score=False):
+def semantic_search(client, query_embedding, k, cosmos_db_database, cosmos_db_container, user_id=None, thread_id=None, return_details=False, return_score=False):
     """
     Find semantically similar memories using vector similarity search.
+    
+    Args:
+        client: CosmosClient instance to use for the operation
+        query_embedding: The embedding vector to search for
+        k: Number of results to return
+        cosmos_db_database: Name of the Cosmos DB database
+        cosmos_db_container: Name of the Cosmos DB container
+        user_id: Optional user ID filter
+        thread_id: Optional thread ID filter
+        return_details: Whether to return detailed metadata
+        return_score: Whether to return similarity scores
     """
     try:
-        # Get Azure credential
-        credential = DefaultAzureCredential()
-        
-        # Create Cosmos DB client with Entra ID authentication
-        client = CosmosClient(
-            url=cosmos_db_endpoint,
-            credential=credential)
-        
         # Get database and container references
         database = client.get_database_client(cosmos_db_database)
         container = database.get_container_client(cosmos_db_container)
@@ -277,20 +278,21 @@ def semantic_search(query_embedding, k, cosmos_db_endpoint, cosmos_db_database, 
         return None
 
 
-def recent_memories(k, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container, user_id=None, thread_id=None, return_details=False):
+def recent_memories(client, k, cosmos_db_database, cosmos_db_container, user_id=None, thread_id=None, return_details=False):
     """
     Retrieve the k most recent memory documents ordered by timestamp.
     Returns a list of lists, where each inner list contains two message objects (user and assistant) representing one turn.
+    
+    Args:
+        client: CosmosClient instance to use for the operation
+        k: Number of recent memories to retrieve
+        cosmos_db_database: Name of the Cosmos DB database
+        cosmos_db_container: Name of the Cosmos DB container
+        user_id: Optional user ID filter
+        thread_id: Optional thread ID filter
+        return_details: Whether to return detailed metadata
     """
     try:
-        # Get Azure credential
-        credential = DefaultAzureCredential()
-        
-        # Create Cosmos DB client with Entra ID authentication
-        client = CosmosClient(
-            url=cosmos_db_endpoint,
-            credential=credential)
-        
         # Get database and container references
         database = client.get_database_client(cosmos_db_database)
         container = database.get_container_client(cosmos_db_container)
@@ -356,19 +358,17 @@ def recent_memories(k, cosmos_db_endpoint, cosmos_db_database, cosmos_db_contain
         return None
 
 
-def remove_item(item_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container):
+def remove_item(client, item_id, cosmos_db_database, cosmos_db_container):
     """
     Delete a memory document from Cosmos DB by its ID.
+    
+    Args:
+        client: CosmosClient instance to use for the operation
+        item_id: ID of the item to delete
+        cosmos_db_database: Name of the Cosmos DB database
+        cosmos_db_container: Name of the Cosmos DB container
     """
     try:
-        # Get Azure credential
-        credential = DefaultAzureCredential()
-        
-        # Create Cosmos DB client with Entra ID authentication
-        client = CosmosClient(
-            url=cosmos_db_endpoint,
-            credential=credential)
-        
         # Get database and container references
         database = client.get_database_client(cosmos_db_database)
         container = database.get_container_client(cosmos_db_container)
@@ -397,21 +397,20 @@ def remove_item(item_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_conta
         return False
 
 
-def get_memories_by_user(user_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container, return_details=False):
+def get_memories_by_user(client, user_id, cosmos_db_database, cosmos_db_container, return_details=False):
     """
     Retrieve all memory documents for a specific user.
     Returns a list of lists, where each inner list contains two message objects (user and assistant) representing one turn.
     If return_details=True, each turn list also includes started_at, ended_at timestamps and token counts are included in messages.
+    
+    Args:
+        client: CosmosClient instance to use for the operation
+        user_id: User ID to filter memories
+        cosmos_db_database: Name of the Cosmos DB database
+        cosmos_db_container: Name of the Cosmos DB container
+        return_details: Whether to return detailed metadata
     """
     try:
-        # Get Azure credential
-        credential = DefaultAzureCredential()
-        
-        # Create Cosmos DB client with Entra ID authentication
-        client = CosmosClient(
-            url=cosmos_db_endpoint,
-            credential=credential)
-        
         # Get database and container references
         database = client.get_database_client(cosmos_db_database)
         container = database.get_container_client(cosmos_db_container)
@@ -465,21 +464,20 @@ def get_memories_by_user(user_id, cosmos_db_endpoint, cosmos_db_database, cosmos
         return None
 
 
-def get_memories_by_thread(thread_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container, return_details=False):
+def get_memories_by_thread(client, thread_id, cosmos_db_database, cosmos_db_container, return_details=False):
     """
     Retrieve all memory documents for a specific thread.
     Returns a list of lists, where each inner list contains two message objects (user and assistant) representing one turn.
     If return_details=True, each turn list also includes started_at, ended_at timestamps and token counts are included in messages.
+    
+    Args:
+        client: CosmosClient instance to use for the operation
+        thread_id: Thread ID to filter memories
+        cosmos_db_database: Name of the Cosmos DB database
+        cosmos_db_container: Name of the Cosmos DB container
+        return_details: Whether to return detailed metadata
     """
     try:
-        # Get Azure credential
-        credential = DefaultAzureCredential()
-        
-        # Create Cosmos DB client with Entra ID authentication
-        client = CosmosClient(
-            url=cosmos_db_endpoint,
-            credential=credential)
-        
         # Get database and container references
         database = client.get_database_client(cosmos_db_database)
         container = database.get_container_client(cosmos_db_container)
@@ -533,19 +531,18 @@ def get_memories_by_thread(thread_id, cosmos_db_endpoint, cosmos_db_database, co
         return None
 
 
-def get_summary_by_thread(thread_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container, return_details=False):
+def get_summary_by_thread(client, thread_id, cosmos_db_database, cosmos_db_container, return_details=False):
     """
     Retrieve the summary document for a specific thread.
+    
+    Args:
+        client: CosmosClient instance to use for the operation
+        thread_id: Thread ID to retrieve summary for
+        cosmos_db_database: Name of the Cosmos DB database
+        cosmos_db_container: Name of the Cosmos DB container
+        return_details: Whether to return detailed metadata
     """
     try:
-        # Get Azure credential
-        credential = DefaultAzureCredential()
-        
-        # Create Cosmos DB client with Entra ID authentication
-        client = CosmosClient(
-            url=cosmos_db_endpoint,
-            credential=credential)
-        
         # Get database and container references
         database = client.get_database_client(cosmos_db_database)
         container = database.get_container_client(cosmos_db_container)
@@ -587,19 +584,17 @@ def get_summary_by_thread(thread_id, cosmos_db_endpoint, cosmos_db_database, cos
         return None
 
 
-def get_memory_by_id(item_id, cosmos_db_endpoint, cosmos_db_database, cosmos_db_container):
+def get_memory_by_id(client, item_id, cosmos_db_database, cosmos_db_container):
     """
     Retrieve a specific memory document by its ID.
+    
+    Args:
+        client: CosmosClient instance to use for the operation
+        item_id: ID of the memory document to retrieve
+        cosmos_db_database: Name of the Cosmos DB database
+        cosmos_db_container: Name of the Cosmos DB container
     """
     try:
-        # Get Azure credential
-        credential = DefaultAzureCredential()
-        
-        # Create Cosmos DB client with Entra ID authentication
-        client = CosmosClient(
-            url=cosmos_db_endpoint,
-            credential=credential)
-        
         # Get database and container references
         database = client.get_database_client(cosmos_db_database)
         container = database.get_container_client(cosmos_db_container)

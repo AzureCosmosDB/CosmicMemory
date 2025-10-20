@@ -105,9 +105,9 @@ from cosmic_memory import CosmicMemory
 memory = CosmicMemory()
 
 # Option 1: Load configuration from .env file or environment variables
-memory.load_config()  # Loads from .env in current directory
+memory.load_config()  # Loads from .env in current directory, and automatically connects to Cosmos DB and Azure OpenAI
 # or
-memory.load_config('.env')  # Loads from specific file
+memory.load_config('.env')  # Loads from specific file, and automatically connects to Cosmos DB and Azure OpenAI
 
 # Option 2: Configure Azure resources manually
 memory.subscription_id = "your-subscription-id"
@@ -122,7 +122,14 @@ memory.openai_embedding_model = "embedding-deployment-name"
 memory.openai_embedding_dimensions = 512  # desired dimension for embeddings model
 # Enable vector indexing for semantic search
 memory.vector_index = True
+
+# When configuring manually, you must explicitly connect to both services
+memory.connect_to_cosmosdb()
+memory.connect_to_openai()
 ```
+
+**Note on Connection Management:**  
+CosmicMemory uses single reusable client connections for both Cosmos DB and Azure OpenAI that are initialized when you call `load_config()` or the individual `connect_to_*()` methods. These connections are reused across all operations, eliminating redundant authentication overhead and dramatically improving performance.
 
 **Environment Variables for `load_config()`:**
 
@@ -610,8 +617,18 @@ This pattern reduces token consumption in LLM prompts while maintaining conversa
 
 #### Methods
 
-- **`load_config(env_file=None)`** - Load configuration from environment variables or .env file. Automatically reads Azure credentials and settings from environment.
+##### Configuration & Connection
+
+- **`load_config(env_file=None)`** - Load configuration from environment variables or .env file. Automatically reads Azure credentials and settings from environment and establishes connections to both Cosmos DB and Azure OpenAI.
+- **`connect_to_cosmosdb()`** - Establish a connection to Azure Cosmos DB using the configured endpoint. This method is automatically called by `load_config()`. Only call this manually if you're configuring resources manually instead of using `load_config()`.
+- **`connect_to_openai()`** - Establish a connection to Azure OpenAI using the configured endpoint. This method is automatically called by `load_config()`. Only call this manually if you're configuring resources manually instead of using `load_config()`.
+
+##### Database Setup
+
 - **`create_memory_store(cosmos_db_database, cosmos_db_container)`** - Create database and container with full-text and vector indexing
+
+##### Memory Operations
+
 - **`write(messages, user_id=None, thread_id=None)`** - Write memories directly to Azure Cosmos DB with automatic token counting and optional embedding generation. Optionally specify user_id and/or thread_id to organize memories by user and conversation thread.
 - **`push_stack(messages, user_id, thread_id)`** - Push a conversation turn (2 messages) onto the client-side memory stack for a specific user and thread. Requires both user_id and thread_id parameters.
 - **`get_stack(user_id, thread_id, k=None)`** - Retrieve the last k conversation turns from the client-side stack for a specific user and thread. If k is not specified, returns the entire stack for that user/thread.

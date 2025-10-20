@@ -50,10 +50,16 @@ class CosmicMemory:
         self.vector_index = True
         # Nested dictionary structure: {user_id: {thread_id: {"messages": [], "stack_index": 0}}}
         self.__memory_stack = {}
+        # Cosmos DB client connection (initialized when connecting)
+        self.cosmos_client = None
+        self.credential = None
+        # Azure OpenAI client connection (initialized when connecting)
+        self.openai_client = None
+        self.token_provider = None
     
-    def load_config(self):
+    def connect_to_cosmosdb(self):
         """
-        Load configuration from environment variables or .env file.
+        Create and store a Cosmos DB client connection.
 
         Args:
             None
@@ -62,10 +68,75 @@ class CosmicMemory:
             None
 
         Raises:
+            ValueError: If cosmos_db_endpoint is not set.
+        """
+        if not self.cosmos_db_endpoint:
+            raise ValueError("cosmos_db_endpoint must be set before connecting to Cosmos DB")
+        
+        # Get Azure credential if not already created
+        if not self.credential:
+            self.credential = DefaultAzureCredential()
+        
+        # Create Cosmos DB client with Entra ID authentication
+        self.cosmos_client = CosmosClient(
+            url=self.cosmos_db_endpoint,
+            credential=self.credential
+        )
+    
+    def connect_to_openai(self):
+        """
+        Create and store an Azure OpenAI client connection.
+
+        Args:
             None
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If openai_endpoint is not set.
+        """
+        if not self.openai_endpoint:
+            raise ValueError("openai_endpoint must be set before connecting to Azure OpenAI")
+        
+        # Get Azure credential if not already created
+        if not self.credential:
+            self.credential = DefaultAzureCredential()
+        
+        # Get token provider for Azure OpenAI if not already created
+        if not self.token_provider:
+            from azure.identity import get_bearer_token_provider
+            self.token_provider = get_bearer_token_provider(
+                self.credential,
+                "https://cognitiveservices.azure.com/.default"
+            )
+        
+        # Create Azure OpenAI client with Entra ID authentication
+        from openai import AzureOpenAI
+        self.openai_client = AzureOpenAI(
+            azure_endpoint=self.openai_endpoint,
+            api_version="2024-02-01",
+            azure_ad_token_provider=self.token_provider
+        )
+    
+    def load_config(self, env_file=None):
+        """
+        Load configuration from environment variables or .env file.
+        
+        After loading configuration, this method automatically establishes
+        connections to Cosmos DB and Azure OpenAI.
+
+        Args:
+            env_file (str, optional): Path to a custom .env file. If None, uses default .env file.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If cosmos_db_endpoint or openai_endpoint is not set after loading.
         """
         # Load environment variables from .env file
-        load_dotenv()
+        load_dotenv(env_file)
         
         # Load configuration from environment variables
         self.subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID', self.subscription_id)
@@ -87,6 +158,10 @@ class CosmicMemory:
         vector_index = os.getenv('AZURE_VECTOR_INDEX')
         if vector_index is not None:
             self.vector_index = vector_index.lower() in ('true', '1', 'yes')
+        
+        # Automatically connect to Cosmos DB and Azure OpenAI after loading configuration
+        self.connect_to_cosmosdb()
+        self.connect_to_openai()
     
     def create_memory_store(self):
         """
@@ -177,8 +252,8 @@ class CosmicMemory:
             if self.vector_index:
                 # Generate embedding using interface function
                 embedding = generate_embedding(
+                    self.openai_client,
                     messages,
-                    self.openai_endpoint,
                     self.openai_embedding_model,
                     self.openai_embedding_dimensions
                 )
@@ -192,8 +267,8 @@ class CosmicMemory:
             
             # Insert into Azure Cosmos DB
             result = insert_memory(
+                self.cosmos_client,
                 memory_document,
-                self.cosmos_db_endpoint,
                 self.cosmos_db_database,
                 self.cosmos_db_container
             )
@@ -412,17 +487,17 @@ class CosmicMemory:
         try:
             # Generate embedding for the query
             query_embedding = generate_embedding(
+                self.openai_client,
                 [{"content": query}],
-                self.openai_endpoint,
                 self.openai_embedding_model,
                 self.openai_embedding_dimensions
             )
             
             if query_embedding is not None:
                 results = semantic_search(
+                    self.cosmos_client,
                     query_embedding,
                     k,
-                    self.cosmos_db_endpoint,
                     self.cosmos_db_database,
                     self.cosmos_db_container,
                     user_id,
@@ -460,8 +535,8 @@ class CosmicMemory:
             
             # Get most recent memories
             results = recent_memories(
+                self.cosmos_client,
                 k,
-                self.cosmos_db_endpoint,
                 self.cosmos_db_database,
                 self.cosmos_db_container,
                 user_id,
@@ -488,8 +563,8 @@ class CosmicMemory:
         try:
             # Get all memories for this user
             results = get_memories_by_user(
+                self.cosmos_client,
                 user_id,
-                self.cosmos_db_endpoint,
                 self.cosmos_db_database,
                 self.cosmos_db_container,
                 return_details
@@ -514,8 +589,8 @@ class CosmicMemory:
         try:
             # Get all memories for this thread
             results = get_memories_by_thread(
+                self.cosmos_client,
                 thread_id,
-                self.cosmos_db_endpoint,
                 self.cosmos_db_database,
                 self.cosmos_db_container,
                 return_details
@@ -539,8 +614,8 @@ class CosmicMemory:
         try:
             # Get the memory by ID
             result = get_memory_by_id(
+                self.cosmos_client,
                 memory_id,
-                self.cosmos_db_endpoint,
                 self.cosmos_db_database,
                 self.cosmos_db_container
             )
@@ -566,10 +641,10 @@ class CosmicMemory:
         """
         try:
             summary_document = summarize_thread(
+                self.openai_client,
                 thread_memories,
                 thread_id,
                 user_id,
-                self.openai_endpoint,
                 self.openai_completions_model,
                 self.openai_embedding_model,
                 self.openai_embedding_dimensions,
@@ -579,8 +654,8 @@ class CosmicMemory:
             # Insert into Cosmos DB if write is True
             if write and summary_document:
                 result = insert_memory(
+                    self.cosmos_client,
                     summary_document,
-                    self.cosmos_db_endpoint,
                     self.cosmos_db_database,
                     self.cosmos_db_container
                 )
@@ -608,8 +683,8 @@ class CosmicMemory:
         try:
             # Retrieve all memories for this thread
             thread_memories = get_memories_by_thread(
+                self.cosmos_client,
                 thread_id,
-                self.cosmos_db_endpoint,
                 self.cosmos_db_database,
                 self.cosmos_db_container,
                 return_details=False
@@ -620,9 +695,7 @@ class CosmicMemory:
                 return None
             
             # Get user_id by querying the first document for this thread
-            credential = DefaultAzureCredential()
-            client = CosmosClient(url=self.cosmos_db_endpoint, credential=credential)
-            database = client.get_database_client(self.cosmos_db_database)
+            database = self.cosmos_client.get_database_client(self.cosmos_db_database)
             container = database.get_container_client(self.cosmos_db_container)
             
             # Query to get user_id from the first memory document
@@ -639,10 +712,10 @@ class CosmicMemory:
             
             # Generate summary
             summary_document = summarize_thread(
+                self.openai_client,
                 thread_memories,
                 thread_id,
                 user_id,
-                self.openai_endpoint,
                 self.openai_completions_model,
                 self.openai_embedding_model,
                 self.openai_embedding_dimensions,
@@ -652,8 +725,8 @@ class CosmicMemory:
             # Insert into Cosmos DB if write is True
             if write and summary_document:
                 result = insert_memory(
+                    self.cosmos_client,
                     summary_document,
-                    self.cosmos_db_endpoint,
                     self.cosmos_db_database,
                     self.cosmos_db_container
                 )
@@ -680,8 +753,8 @@ class CosmicMemory:
         """
         try:
             result = get_summary_by_thread(
+                self.cosmos_client,
                 thread_id,
-                self.cosmos_db_endpoint,
                 self.cosmos_db_database,
                 self.cosmos_db_container,
                 return_details
@@ -706,8 +779,8 @@ class CosmicMemory:
             
             # Remove the item from Azure Cosmos DB
             result = remove_item(
+                self.cosmos_client,
                 memory_id,
-                self.cosmos_db_endpoint,
                 self.cosmos_db_database,
                 self.cosmos_db_container
             )

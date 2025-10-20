@@ -5,31 +5,27 @@ import json
 import uuid
 import tiktoken
 from datetime import datetime
-from openai import AzureOpenAI
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 
 
-def generate_embedding(messages, openai_endpoint, openai_embedding_model, openai_embedding_dimensions):
+def generate_embedding(openai_client, messages, openai_embedding_model, openai_embedding_dimensions):
     """
     Generate embedding vector for messages using Azure OpenAI.
+    
+    Args:
+        openai_client: AzureOpenAI client instance to use for the operation
+        messages: List of message dictionaries with 'content' field
+        openai_embedding_model: Name of the embedding model to use
+        openai_embedding_dimensions: Dimensions for the embedding vector
+    
+    Returns:
+        list: Embedding vector, or None if generation failed
     """
     try:
         # Concatenate all message content for embedding
         text_to_embed = " ".join([msg.get("content", "") for msg in messages])
         
-        # Get Azure credential token
-        token_provider = get_bearer_token_provider(
-            DefaultAzureCredential(),
-            "https://cognitiveservices.azure.com/.default")
-        
-        # Create Azure OpenAI client with Entra ID authentication
-        client = AzureOpenAI(
-            azure_endpoint=openai_endpoint,
-            api_version="2024-02-01",
-            azure_ad_token_provider=token_provider)
-        
         # Generate embedding
-        response = client.embeddings.create(
+        response = openai_client.embeddings.create(
             input=text_to_embed,
             model=openai_embedding_model,
             dimensions=openai_embedding_dimensions)
@@ -40,15 +36,15 @@ def generate_embedding(messages, openai_endpoint, openai_embedding_model, openai
         return None
 
 
-def summarize_thread(thread_memories, thread_id, user_id, openai_endpoint, openai_completions_model, openai_embedding_model, openai_embedding_dimensions, write=False):
+def summarize_thread(openai_client, thread_memories, thread_id, user_id, openai_completions_model, openai_embedding_model, openai_embedding_dimensions, write=False):
     """
     Summarize a thread's conversation history using Azure OpenAI completions.
     
     Args:
+        openai_client: AzureOpenAI client instance to use for the operation
         thread_memories: List of memory documents to summarize
         thread_id: Thread ID for the summary
         user_id: User ID for the summary
-        openai_endpoint: Azure OpenAI endpoint
         openai_completions_model: Model to use for completions
         openai_embedding_model: Model to use for embeddings
         openai_embedding_dimensions: Dimensions for embeddings
@@ -58,17 +54,6 @@ def summarize_thread(thread_memories, thread_id, user_id, openai_endpoint, opena
         Summary document with optional embedding and ID
     """
     try:
-        # Get Azure credential token
-        token_provider = get_bearer_token_provider(
-            DefaultAzureCredential(),
-            "https://cognitiveservices.azure.com/.default")
-        
-        # Create Azure OpenAI client with Entra ID authentication
-        client = AzureOpenAI(
-            azure_endpoint=openai_endpoint,
-            api_version="2024-02-01",
-            azure_ad_token_provider=token_provider)
-        
         # Prepare the conversation history for summarization
         conversation_text = json.dumps(thread_memories, indent=2)
         
@@ -91,7 +76,7 @@ def summarize_thread(thread_memories, thread_id, user_id, openai_endpoint, opena
 """
 
         # Call the completions API
-        response = client.chat.completions.create(
+        response = openai_client.chat.completions.create(
             model=openai_completions_model,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -126,8 +111,8 @@ def summarize_thread(thread_memories, thread_id, user_id, openai_endpoint, opena
             
             # Generate embedding for the summary and facts
             embedding = generate_embedding(
+                openai_client,
                 [{"content": embedding_text}],
-                openai_endpoint,
                 openai_embedding_model,
                 openai_embedding_dimensions)
             
