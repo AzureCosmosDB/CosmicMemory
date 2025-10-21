@@ -178,7 +178,7 @@ memory.add_db(messages, user_id="user-123", thread_id="thread-gui d-456")
 
 ### Client-Side Local Memory 
 
-CosmicMemory provides a client-side local memory for efficient short-term memory management. The local memory is organized as a nested dictionary structure that maintains separate conversation histories per user and thread: `{user_id: {thread_id: {"messages": [...], "local_index": 0}}}`. This allows you to manage multiple concurrent conversations in RAM and batch write them to Azure Cosmos DB when desired (e.g., at the end of a turn or session).
+CosmicMemory provides a client-side local memory for efficient short-term memory management. The local memory is organized as a nested dictionary structure that maintains separate conversation histories per user and thread. This allows you to manage multiple concurrent conversations in RAM and write them to Azure Cosmos DB when desired (e.g., at the end of a turn or session).
 
 
 #### Push to Local Memory
