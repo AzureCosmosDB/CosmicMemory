@@ -329,7 +329,7 @@ class CosmicMemory:
         # Append messages to the thread
         self.__memory_local[user_id][thread_id]["messages"].append(messages)
     
-    def add_to_db(self, user_id, thread_id):
+    def add_local_to_db(self, user_id, thread_id):
         """
         Commit new items from local memory to Azure Cosmos DB, starting from local_index. Only writes items that haven't been persisted yet.
 

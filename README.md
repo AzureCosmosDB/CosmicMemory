@@ -7,7 +7,16 @@
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Azure%20Cosmos%20DB-0077B5?logo=linkedin)](https://www.linkedin.com/showcase/azure-cosmos-db/)
 [![YouTube](https://img.shields.io/badge/YouTube-Azure%20Cosmos%20DB-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@AzureCosmosDB)
 
-A Python framework for storing, managing, and retrieving agent memories using Azure Cosmos DB and Azure OpenAI, that orchestrates memory processesing on the client. 
+CosmicMemory is a memory management framework for AI agents that implements a two-tier memory architecture: **short-term memories** for active conversation threads and **long-term memories** for efficient context retrieval.
+
+**Short-Term Memories (Active Threads)**  
+Store active conversation threads in client-side RAM (local) for immediate access during ongoing sessions. These memories provide full conversational context to your LLM with zero latency. Persist accumulated threadsin Azure Cosmos DB for durability and enable advanced retrieval capabilities including semantic search across conversations.
+
+**Long-Term Memories (Summaries & Facts)**  
+Generate AI-powered summaries and extract key facts from conversation threads and store them in Azure Cosmos DB. This condensed representation reduces LLM token consumption by providing essential context without passing entire conversation histories. Long-term memories filter out noise and irrelevant information, ensuring agents receive only the most pertinent context while keeping costs and latency low.
+
+
+![CosmicMemory Architecture](design.png)
 
 ## Table of Contents
 - [Overview](#overview)
@@ -32,17 +41,7 @@ A Python framework for storing, managing, and retrieving agent memories using Az
 - [Future Improvements](#future-improvements)
 - [License](#license)
 
-## Overview
 
-CosmicMemory simplifies memory management for AI agents by providing dual storage options: a client-side memory (local) for fast, short-term access, and Azure Cosmos DB for persistent storage with advanced search capabilities. Store and retrieve memories from RAM for quick LLM context passing, or persist to Azure Cosmos DB for durability, scalability, and semantic search.
-
-**Two Ways to Store Memories:**
-
-1. **Client-side in-memory** - Store conversation turns in a client-side memory (local) for immediate access during active sessions. Later, write the accumulated memories to Azure Cosmos DB for persistence and enable advanced retrieval inside threads or across-thread semantic search.
-
-2. **Azure Cosmos DB for persistance and advanced retrieval** - Write and read memories directly to and from Azure Cosmos DB for immediate persistence. This approach ensures every interaction is durably stored and immediately available for advanced search and retrieval operations. 
-
-![CosmicMemory Architecture](design.png)
 
 ## Core Functionalities
 
@@ -254,7 +253,7 @@ Persist the accumulated memories from the local memory to Azure Cosmos DB. This 
 
 ```python
 # Add all local memory items for a specific user/thread to Azure Cosmos DB
-memory.add_to_db(user_id="user-123", thread_id="thread-456")
+memory.add_local_to_db(user_id="user-123", thread_id="thread-456")
 
 # All memories are now persisted with the specified user_id and thread_id
 ```
@@ -292,7 +291,7 @@ memory.add_local([
 context = memory.get_local(user_id="user-456", thread_id="thread-789", k=2)
 
 # When ready, batch persist to database
-memory.add_to_db(user_id="user-456", thread_id="thread-789")
+memory.add_local_to_db(user_id="user-456", thread_id="thread-789")
 
 # Clear local memory for this user/thread when starting a new conversation
 memory.clear_local(user_id="user-456", thread_id="thread-789")
@@ -582,7 +581,7 @@ AI-generated summaries of conversation threads:
 CosmicMemory offers flexible memory management strategies to match your application's needs:
 
 **In-Memory Local for Active Sessions**  
-Use the client-side local memory (`add_local`, `get_local`, `pop_local`) to track short-term conversational context during active sessions. This approach provides instant access to recent interactions without database overhead, ideal for maintaining context across multiple LLM calls within a single conversation. Batch persist accumulated memories to Azure Cosmos DB using `add_to_db()` when the session concludes or at natural conversation boundaries.
+Use the client-side local memory (`add_local`, `get_local`, `pop_local`) to track short-term conversational context during active sessions. This approach provides instant access to recent interactions without database overhead, ideal for maintaining context across multiple LLM calls within a single conversation. Batch persist accumulated memories to Azure Cosmos DB using `add_local_to_db()` when the session concludes or at natural conversation boundaries.
 
 **Direct Database Operations**  
 For immediate persistence requirements, use `add_db()` to store memories directly to Azure Cosmos DB as conversations occur. This ensures data durability from the moment of creation and is well-suited for stateless architectures, long-running conversations, or scenarios where every interaction must be preserved immediately.
@@ -607,42 +606,46 @@ Optimize long-running conversations with AI-generated summaries:
 
 This pattern reduces token consumption in LLM prompts while maintaining conversational continuity across sessions.
 
-## API Reference
 
-### CosmicMemory Class
+## CosmicMemory APIs
 
-#### Methods
-
-##### Configuration & Connection
+### Configuration & Connection
 
 - **`load_config(env_file=None)`** - Load configuration from environment variables or .env file. Automatically reads Azure credentials and settings from environment and establishes connections to both Cosmos DB and Azure OpenAI.
 - **`connect_to_cosmosdb()`** - Establish a connection to Azure Cosmos DB using the configured endpoint. This method is automatically called by `load_config()`. Only call this manually if you're configuring resources manually instead of using `load_config()`.
 - **`connect_to_openai()`** - Establish a connection to Azure OpenAI using the configured endpoint. This method is automatically called by `load_config()`. Only call this manually if you're configuring resources manually instead of using `load_config()`.
 
-##### Database Setup
+### Database Setup
 
 - **`create_memory_store(cosmos_db_database, cosmos_db_container)`** - Create database and container with full-text and vector indexing
 
-##### Memory Operations
+### Memory Operations
 
-- **`add_db(messages, user_id=None, thread_id=None)`** - Write memories directly to Azure Cosmos DB with automatic token counting and optional embedding generation. Optionally specify user_id and/or thread_id to organize memories by user and conversation thread.
+#### Local Memory Operations (Client-Side RAM)
+Operations on in-memory data structure for fast, temporary storage during active sessions:
+
 - **`add_local(messages, user_id, thread_id)`** - Add a conversation turn (2 messages) to the client-side local memory for a specific user and thread. Requires both user_id and thread_id parameters.
 - **`get_local(user_id, thread_id, k=None)`** - Retrieve the last k conversation turns from the client-side local memory for a specific user and thread. If k is not specified, returns the entire local memory for that user/thread.
 - **`pop_local(user_id, thread_id)`** - Remove and return the most recently added element from the local memory for a specific user and thread.
-- **`add_to_db(user_id, thread_id)`** - Add newly accumulated items from local memory to Azure Cosmos DB for a specific user and thread.
 - **`clear_local(user_id=None, thread_id=None)`** - Clear the client-side local memory. Clear all local memory (no params), all threads for a user (user_id only), or a specific user/thread (both params).
+- **`add_local_to_db(user_id, thread_id)`** - Batch persist newly accumulated items from local memory to Azure Cosmos DB for a specific user and thread.
+- **`summarize_local(thread_memories, thread_id, user_id, write=False)`** - Generate an AI-powered summary of conversation turns stored in the client-side local memory (RAM). Accepts list of lists format where each inner list contains 2 message objects. When write=True, generates embeddings and persists to Azure Cosmos DB.
+
+#### Database Memory Operations (Azure Cosmos DB)
+Operations that read from or write to persistent storage in Azure Cosmos DB:
+
+- **`add_db(messages, user_id=None, thread_id=None)`** - Write memories directly to Azure Cosmos DB with automatic token counting and optional embedding generation. Optionally specify user_id and/or thread_id to organize memories by user and conversation thread.
 - **`search_db(query, k, user_id=None, thread_id=None, return_details=False, return_score=False)`** - Search for semantically similar memories in Azure Cosmos DB using vector similarity, optionally filtered by user_id and/or thread_id. Set return_score=True to include similarity scores.
 - **`get_recent_db(k, user_id=None, thread_id=None, return_details=False)`** - Retrieve the k most recent memories from Azure Cosmos DB ordered by timestamp, optionally filtered by user_id and/or thread_id.
 - **`get_all_by_user_db(user_id, return_details=False)`** - Retrieve all memories for a specific user from Azure Cosmos DB.
 - **`get_all_by_thread_db(thread_id, return_details=False)`** - Retrieve all memories for a specific conversation thread from Azure Cosmos DB.
 - **`get_id_db(memory_id)`** - Retrieve a specific memory by its document id from Azure Cosmos DB.
-- **`summarize_local(thread_memories, thread_id, user_id, write=False)`** - Generate an AI-powered summary of conversation turns stored in the client-side local memory (RAM). Accepts list of lists format where each inner list contains 2 message objects. When write=True, generates embeddings and persists to Azure Cosmos DB.
 - **`summarize_db(thread_id, write=False)`** - Automatically retrieve all memories for a thread from Azure Cosmos DB and generate a summary. Automatically extracts user_id from the first memory document. When write=True, persists summary to Cosmos DB.
 - **`get_summary_db(thread_id, return_details=False)`** - Retrieve a previously generated summary for a conversation thread from Azure Cosmos DB. When return_details=True, includes thread_id, user_id, token_count, and last_updated fields.
 - **`delete_from_db(memory_id)`** - Delete a memory by its document id from Azure Cosmos DB.
 
 
-## Architecture
+### Architecture
 
 CosmicMemory follows a modular architecture with clear separation of concerns:
 
@@ -658,14 +661,9 @@ CosmicMemory/
 ```
 
 - **`cosmic_memory.py`** - High-level API providing intuitive methods for memory operations, client-side memory management, and orchestration of database and AI operations
-
 - **`utils/cosmos_interface.py`** - Low-level Azure Cosmos DB functions for container creation, document CRUD operations, vector search, and query execution
-
 - **`utils/processing.py`** - AI processing utilities including Azure OpenAI embedding generation, thread summarization, and token counting
 
-## Security
-
-All Azure operations use **DefaultAzureCredential** for authentication, supporting Azure EntraID or Managed Identities, and environment variables. No API keys or connection strings are stored in code.
 
 ## Future Improvements
 
