@@ -20,7 +20,7 @@ A Python framework for storing, managing, and retrieving agent memories using Az
   - [Initialize CosmicMemory](#initialize-cosmicmemory)
   - [Create Memory Store](#create-memory-store)
   - [Add Memories](#add-memories)
-  - [Client-Side Memory Stack](#client-side-memory-stack)
+  - [Client-Side Local Memory](#client-side-local-memory)
   - [Search and Retrieve Memories](#search-and-retrieve-memories)
   - [Summarize Conversations](#summarize-conversations)
   - [Delete Memories](#delete-memories)
@@ -34,11 +34,11 @@ A Python framework for storing, managing, and retrieving agent memories using Az
 
 ## Overview
 
-CosmicMemory simplifies memory management for AI agents by providing dual storage options: a client-side memory stack for fast, short-term access, and Azure Cosmos DB for persistent storage with advanced search capabilities. Store and retrieve memories from RAM for quick LLM context passing, or persist to Azure Cosmos DB for durability, scalability, and semantic search.
+CosmicMemory simplifies memory management for AI agents by providing dual storage options: a client-side memory (local) for fast, short-term access, and Azure Cosmos DB for persistent storage with advanced search capabilities. Store and retrieve memories from RAM for quick LLM context passing, or persist to Azure Cosmos DB for durability, scalability, and semantic search.
 
 **Two Ways to Store Memories:**
 
-1. **Client-side in-memory** - Store conversation turns in a client-side memory stack for immediate access during active sessions. Later, write the accumulated memories to Azure Cosmos DB for persistence and enable advanced retrieval inside threads or across-thread semantic search.
+1. **Client-side in-memory** - Store conversation turns in a client-side memory (local) for immediate access during active sessions. Later, write the accumulated memories to Azure Cosmos DB for persistence and enable advanced retrieval inside threads or across-thread semantic search.
 
 2. **Azure Cosmos DB for persistance and advanced retrieval** - Write and read memories directly to and from Azure Cosmos DB for immediate persistence. This approach ensures every interaction is durably stored and immediately available for advanced search and retrieval operations. 
 
@@ -47,14 +47,14 @@ CosmicMemory simplifies memory management for AI agents by providing dual storag
 ## Core Functionalities
 
 ### Client-Side Memory
-- **Push to Stack** ⚡ - Store memories in client-side RAM for immediate access
-- **Get from Stack** 📤 - Retrieve recent conversation context instantly for LLM prompts
-- **Pop from Stack** ↩️ - Remove the most recent memory from RAM
-- **Clear Stack** 🧹 - Reset client-side memory when starting new conversations
+- **Add to local** ⚡ - Store memories in client-side RAM for immediate access
+- **Get from local** 📤 - Retrieve recent conversation context instantly for LLM prompts
+- **Pop from local** ↩️ - Remove the most recent memory from RAM
+- **Clear local** 🧹 - Reset client-side memory when starting new conversations
 
 ### Azure Cosmos DB Memory Persistence
 - **Write to Database** 💾 - Persist individual memories directly to Azure Cosmos DB with automatic token counting and embeddings
-- **Batch Write Stack** 📦 - Commit multiple accumulated memories from RAM to an Azure Cosmos DB container 
+- **Write Local to Daatabase** 📦 - Commit multiple accumulated memories from RAM to an Azure Cosmos DB container 
 - **Database/Container Creation** 🏗️ - Automatically create Azure Cosmos DB database and container with full-text and vector indexing policies
 
 ### Advanced Search & Retrieval in Azure Cosmos DB
@@ -164,7 +164,7 @@ Store conversation turns with automatic token counting:
 ```python
 messages = [
     {"role": "user", "content": "What's the best type of coffee?"},
-    {"role": "assistant", "content": "The best type of coffee is the one that makes you happy with every sip."}
+    {"role": "agent", "content": "The best type of coffee is the one that makes you happy with every sip."}
 ]
 
 # Write with auto-generated user_id and thread_id
@@ -180,45 +180,45 @@ memory.write(messages, thread_id="thread-guid-456")
 memory.write(messages, user_id="user-123", thread_id="thread-guid-456")
 ```
 
-### Client-Side Memory 
+### Client-Side Local Memory 
 
-CosmicMemory provides a client-side memory stack for efficient short-term memory management. The stack is organized as a nested dictionary structure that maintains separate conversation histories per user and thread: `{user_id: {thread_id: {"messages": [...], "stack_index": 0}}}`. This allows you to manage multiple concurrent conversations in RAM and batch write them to Azure Cosmos DB when desired (e.g., at the end of a turn or session).
+CosmicMemory provides a client-side local memory for efficient short-term memory management. The local memory is organized as a nested dictionary structure that maintains separate conversation histories per user and thread: `{user_id: {thread_id: {"messages": [...], "local_index": 0}}}`. This allows you to manage multiple concurrent conversations in RAM and batch write them to Azure Cosmos DB when desired (e.g., at the end of a turn or session).
 
 
-#### Push to Stack
+#### Push to Local Memory
 
-Add memories to the client-side stack without writing to Azure Cosmos DB:
+Add memories to the client-side local memory without writing to Azure Cosmos DB:
 
 ```python
-# Add messages to the stack for a specific user and thread
+# Add messages to the local memory for a specific user and thread
 messages1 = [
     {"role": "user", "content": "Hello!"},
-    {"role": "assistant", "content": "Hi there!"}
+    {"role": "agent", "content": "Hi there!"}
 ]
-memory.push_stack(messages1, user_id="user-123", thread_id="thread-456")
+memory.add_local(messages1, user_id="user-123", thread_id="thread-456")
 
 messages2 = [
     {"role": "user", "content": "How are you?"},
-    {"role": "assistant", "content": "I'm doing great!"}
+    {"role": "agent", "content": "I'm doing great!"}
 ]
-memory.push_stack(messages2, user_id="user-123", thread_id="thread-456")
+memory.add_local(messages2, user_id="user-123", thread_id="thread-456")
 
-# Stack now contains 2 conversation turns in RAM for this user/thread combination
+# Local memory now contains 2 conversation turns in RAM for this user/thread combination
 ```
 
-**Note:** `push_stack()` requires exactly 2 elements (one turn) per call.
+**Note:** `add_local()` requires exactly 2 elements (one turn) per call.
 
 
-#### Get from Stack
+#### Get from Local Memory
 
-Retrieve the last k items from the stack for a specific user and thread to pass to your LLM:
+Retrieve the last k items from the local memory for a specific user and thread to pass to your LLM:
 
 ```python
-# Get the last 3 conversation turns from the stack for a specific user/thread
-recent_context = memory.get_stack(user_id="user-123", thread_id="thread-456", k=3)
+# Get the last 3 conversation turns from the local memory for a specific user/thread
+recent_context = memory.get_local(user_id="user-123", thread_id="thread-456", k=3)
 
-# Get all items from the stack for a specific user/thread
-all_context = memory.get_stack(user_id="user-123", thread_id="thread-456")
+# Get all items from the local memory for a specific user/thread
+all_context = memory.get_local(user_id="user-123", thread_id="thread-456")
 ```
 
 **Sample Output:**
@@ -227,78 +227,78 @@ all_context = memory.get_stack(user_id="user-123", thread_id="thread-456")
 [
   [
     {"role": "user", "content": "What's the capital of France?"},
-    {"role": "assistant", "content": "Paris is the capital of France."}
+    {"role": "agent", "content": "Paris is the capital of France."}
   ],
   [
     {"role": "user", "content": "What's the population?"},
-    {"role": "assistant", "content": "Paris has about 2.2 million people."}
+    {"role": "agent", "content": "Paris has about 2.2 million people."}
   ],
   [
     {"role": "user", "content": "What about the metro area?"},
-    {"role": "assistant", "content": "The Paris metropolitan area has over 12 million people."}
+    {"role": "agent", "content": "The Paris metropolitan area has over 12 million people."}
   ]
 ]
 ```
 
-#### Pop from Stack
+#### Pop from Local Memory
 
-Remove and return the most recently added element from the stack for a specific user and thread:
+Remove and return the most recently added element from the local memory for a specific user and thread:
 
 ```python
 # Remove the most recent conversation turn for a specific user/thread
-last_item = memory.pop_stack(user_id="user-123", thread_id="thread-456")
+last_item = memory.pop_local(user_id="user-123", thread_id="thread-456")
 
-# Returns the last item added, or None if stack is empty
+# Returns the last item added, or None if local memory is empty
 ```
 
-#### Write Stack to Azure Cosmos DB
+#### Write Local Memory to Azure Cosmos DB
 
-Persist the accumulated memories from the stack to Azure Cosmos DB. This will add the latest memories since the last write to the container to prevent redundant or duplicate memories. If this is the first write, all the memories in the stack will be added to the container.
+Persist the accumulated memories from the local memory to Azure Cosmos DB. This will add the latest memories since the last write to the container to prevent redundant or duplicate memories. If this is the first write, all the memories in the local memory will be added to the container.
 
 ```python
-# Write all stack items for a specific user/thread to Azure Cosmos DB
-memory.write_stack(user_id="user-123", thread_id="thread-456")
+# Write all local memory items for a specific user/thread to Azure Cosmos DB
+memory.write_local(user_id="user-123", thread_id="thread-456")
 
 # All memories are now persisted with the specified user_id and thread_id
 ```
 
-#### Clear Stack
+#### Clear Local Memory
 
-Clear the stack after committing or when starting a new conversation. You can clear all stacks, all threads for a specific user, or a specific user/thread combination:
+Clear the local memory after committing or when starting a new conversation. You can clear all local memory, all threads for a specific user, or a specific user/thread combination:
 
 ```python
-# Clear all items from all stacks
-memory.clear_stack()
+# Clear all items from all local memory
+memory.clear_local()
 
 # Clear all threads for a specific user
-memory.clear_stack(user_id="user-123")
+memory.clear_local(user_id="user-123")
 
 # Clear a specific user/thread combination
-memory.clear_stack(user_id="user-123", thread_id="thread-456")
+memory.clear_local(user_id="user-123", thread_id="thread-456")
 ```
 
 **Example Workflow:**
 
 ```python
 # Accumulate conversation turns in RAM for a specific user/thread
-memory.push_stack([
+memory.add_local([
     {"role": "user", "content": "What's the capital of France?"},
-    {"role": "assistant", "content": "Paris is the capital of France."}
+    {"role": "agent", "content": "Paris is the capital of France."}
 ], user_id="user-456", thread_id="thread-789")
 
-memory.push_stack([
+memory.add_local([
     {"role": "user", "content": "What's the population?"},
-    {"role": "assistant", "content": "Paris has about 2.2 million people."}
+    {"role": "agent", "content": "Paris has about 2.2 million people."}
 ], user_id="user-456", thread_id="thread-789")
 
 # Get recent context for next LLM call
-context = memory.get_stack(user_id="user-456", thread_id="thread-789", k=2)
+context = memory.get_local(user_id="user-456", thread_id="thread-789", k=2)
 
 # When ready, batch persist to database
-memory.write_stack(user_id="user-456", thread_id="thread-789")
+memory.write_local(user_id="user-456", thread_id="thread-789")
 
-# Clear stack for this user/thread when starting a new conversation
-memory.clear_stack(user_id="user-456", thread_id="thread-789")
+# Clear local memory for this user/thread when starting a new conversation
+memory.clear_local(user_id="user-456", thread_id="thread-789")
 ```
 
 ### Search and Retrieve Memories
@@ -339,7 +339,7 @@ memory.search("weather forecast", k=5)
         "token_count": 7
       },
       {
-        "role": "assistant",
+        "role": "agent",
         "content": "The weather in Redmond, WA will be partly cloudy with a high of 65F.",
         "token_count": 10
       }
@@ -373,7 +373,7 @@ memory.get_recent(k=10, return_details=True)
         "token_count": 5
       },
       {
-        "role": "assistant",
+        "role": "agent",
         "content": "Python is a high-level programming language.",
         "token_count": 9
       }
@@ -416,25 +416,25 @@ memory.get_id("document-id-here")
 
 ### Summarize Conversations
 
-#### Summarize In-Memory Stack (`summarize_stack`)
+#### Summarize In-Memory Local (`summarize_local`)
 
-Generate a summary of conversation turns stored in the client-side memory stack (RAM):
+Generate a summary of conversation turns stored in the client-side local memory (RAM):
 
 ```python
-# Get memories from the stack
-stack_memories = memory.get_stack()
+# Get memories from the local memory
+local_memories = memory.get_local()
 
 # Generate summary without persisting to database (preview mode)
-summary = memory.summarize_stack(
-    stack_memories,
+summary = memory.summarize_local(
+    local_memories,
     thread_id="thread-guid-here",
     user_id="user-123",
     write=False
 )
 
 # Generate and persist summary to Azure Cosmos DB
-summary = memory.summarize_stack(
-    stack_memories,
+summary = memory.summarize_local(
+    local_memories,
     thread_id="thread-guid-here",
     user_id="user-123",
     write=True
@@ -464,7 +464,7 @@ summary = memory.summarize_thread("thread-guid-here", write=True)
   "thread_id": "thread-guid-here",
   "user_id": "user-123",
   "type": "summary",
-  "summary": "The user asked about making espresso at home. The assistant provided detailed information about grind settings, dose amounts for different roasts, and extraction timing.",
+  "summary": "The user asked about making espresso at home. The agent provided detailed information about grind settings, dose amounts for different roasts, and extraction timing.",
   "facts": [
     "User is interested in home espresso preparation",
     "Double shot requires 16-19g depending on roast level",
@@ -494,7 +494,7 @@ summary = memory.get_summary("thread-guid-here", return_details=True)
 
 ```json
 {
-  "summary": "The user asked about making espresso at home. The assistant provided detailed information about grind settings, dose amounts for different roasts, and extraction timing.",
+  "summary": "The user asked about making espresso at home. The agent provided detailed information about grind settings, dose amounts for different roasts, and extraction timing.",
   "facts": [
     "User is interested in home espresso preparation",
     "Double shot requires 16-19g depending on roast level",
@@ -545,7 +545,7 @@ One-turn-per-document model for conversation memories:
       "token_count": 15
     },
     {
-      "role": "assistant",
+      "role": "agent",
       "content": "For a double shot (about 60ml output), here are the recommended doses:\n\n- **Light roast**: 18-19 grams\n- **Medium roast**: 17-18 grams\n- **Bold/dark roast**: 16-17 grams\n\nDarker roasts are less dense, so you need slightly less by weight. Start with these ranges and adjust based on your taste and extraction time (aim for 25-30 seconds).",
       "token_count": 89
     }
@@ -566,7 +566,7 @@ AI-generated summaries of conversation threads:
   "type": "summary",
   "user_id": "user-123",
   "thread_id": "conversation-guid",
-  "summary": "The user asked about making espresso at home. The assistant provided detailed information about grind settings, dose amounts for different roasts, and extraction timing.",
+  "summary": "The user asked about making espresso at home. The agent provided detailed information about grind settings, dose amounts for different roasts, and extraction timing.",
   "facts": [
     "User is interested in home espresso preparation",
     "Double shot requires 16-19g depending on roast level",
@@ -585,8 +585,8 @@ AI-generated summaries of conversation threads:
 
 CosmicMemory offers flexible memory management strategies to match your application's needs:
 
-**In-Memory Stack for Active Sessions**  
-Use the client-side RAM stack (`push_stack`, `get_stack`, `pop_stack`) to track short-term conversational context during active sessions. This approach provides instant access to recent interactions without database overhead, ideal for maintaining context across multiple LLM calls within a single conversation. Batch persist accumulated memories to Azure Cosmos DB using `write_stack()` when the session concludes or at natural conversation boundaries.
+**In-Memory Local for Active Sessions**  
+Use the client-side local memory (`add_local`, `get_local`, `pop_local`) to track short-term conversational context during active sessions. This approach provides instant access to recent interactions without database overhead, ideal for maintaining context across multiple LLM calls within a single conversation. Batch persist accumulated memories to Azure Cosmos DB using `write_local()` when the session concludes or at natural conversation boundaries.
 
 **Direct Database Operations**  
 For immediate persistence requirements, use `write()` to store memories directly to Azure Cosmos DB as conversations occur. This ensures data durability from the moment of creation and is well-suited for stateless architectures, long-running conversations, or scenarios where every interaction must be preserved immediately.
@@ -604,7 +604,7 @@ Leverage Azure Cosmos DB's powerful search capabilities for both memories and su
 Optimize long-running conversations with AI-generated summaries:
 
 1. **Generate & Persist** - At the end of conversation threads or sessions, generate and store thread summaries with extracted key facts:
-   - Use `summarize_stack(stack_memories, thread_id, user_id, write=True)` to summarize in-memory conversations from the client-side stack
+   - Use `summarize_local(local_memories, thread_id, user_id, write=True)` to summarize in-memory conversations from the client-side local memory
    - Use `summarize_thread(thread_id, write=True)` to automatically retrieve and summarize entire threads already stored in Cosmos DB
 2. **Resume Sessions** - When resuming a conversation, retrieve the summary using `get_summary()` to restore context without loading entire conversation histories
 3. **Preview Mode** - Use `write=False` with either method to generate summaries on-demand without database writes, useful for testing or temporary previews
@@ -630,17 +630,17 @@ This pattern reduces token consumption in LLM prompts while maintaining conversa
 ##### Memory Operations
 
 - **`write(messages, user_id=None, thread_id=None)`** - Write memories directly to Azure Cosmos DB with automatic token counting and optional embedding generation. Optionally specify user_id and/or thread_id to organize memories by user and conversation thread.
-- **`push_stack(messages, user_id, thread_id)`** - Push a conversation turn (2 messages) onto the client-side memory stack for a specific user and thread. Requires both user_id and thread_id parameters.
-- **`get_stack(user_id, thread_id, k=None)`** - Retrieve the last k conversation turns from the client-side stack for a specific user and thread. If k is not specified, returns the entire stack for that user/thread.
-- **`pop_stack(user_id, thread_id)`** - Remove and return the most recently added element from the memory stack for a specific user and thread.
-- **`write_stack(user_id, thread_id)`** - Write newly accumulated items from memory stack to Azure Cosmos DB for a specific user and thread.
-- **`clear_stack(user_id=None, thread_id=None)`** - Clear the client-side memory stack. Clear all stacks (no params), all threads for a user (user_id only), or a specific user/thread (both params).
+- **`add_local(messages, user_id, thread_id)`** - Add a conversation turn (2 messages) to the client-side local memory for a specific user and thread. Requires both user_id and thread_id parameters.
+- **`get_local(user_id, thread_id, k=None)`** - Retrieve the last k conversation turns from the client-side local memory for a specific user and thread. If k is not specified, returns the entire local memory for that user/thread.
+- **`pop_local(user_id, thread_id)`** - Remove and return the most recently added element from the local memory for a specific user and thread.
+- **`write_local(user_id, thread_id)`** - Write newly accumulated items from local memory to Azure Cosmos DB for a specific user and thread.
+- **`clear_local(user_id=None, thread_id=None)`** - Clear the client-side local memory. Clear all local memory (no params), all threads for a user (user_id only), or a specific user/thread (both params).
 - **`search(query, k, user_id=None, thread_id=None, return_details=False, return_score=False)`** - Search for semantically similar memories using vector similarity, optionally filtered by user_id and/or thread_id. Set return_score=True to include similarity scores.
 - **`get_recent(k, user_id=None, thread_id=None, return_details=False)`** - Retrieve the k most recent memories ordered by timestamp, optionally filtered by user_id and/or thread_id
 - **`get_all_by_user(user_id, return_details=False)`** - Retrieve all memories for a specific user.
 - **`get_all_by_thread(thread_id, return_details=False)`** - Retrieve all memories for a specific conversation thread.
 - **`get_id(memory_id)`** - Retrieve a specific memory by its document id.
-- **`summarize_stack(thread_memories, thread_id, user_id, write=False)`** - Generate an AI-powered summary of conversation turns stored in the client-side memory stack (RAM). Accepts list of lists format where each inner list contains 2 message objects. When write=True, generates embeddings and persists to Azure Cosmos DB.
+- **`summarize_local(thread_memories, thread_id, user_id, write=False)`** - Generate an AI-powered summary of conversation turns stored in the client-side local memory (RAM). Accepts list of lists format where each inner list contains 2 message objects. When write=True, generates embeddings and persists to Azure Cosmos DB.
 - **`summarize_thread(thread_id, write=False)`** - Automatically retrieve all memories for a thread from Cosmos DB and generate a summary. Automatically extracts user_id from the first memory document. When write=True, persists summary to Cosmos DB.
 - **`get_summary(thread_id, return_details=False)`** - Retrieve a previously generated summary for a conversation thread. When return_details=True, includes thread_id, user_id, token_count, and last_updated fields.
 - **`delete(memory_id)`** - Delete a memory by its document id.
@@ -661,7 +661,7 @@ CosmicMemory/
 └── README.md
 ```
 
-- **`cosmic_memory.py`** - High-level API providing intuitive methods for memory operations, client-side stack management, and orchestration of database and AI operations
+- **`cosmic_memory.py`** - High-level API providing intuitive methods for memory operations, client-side memory management, and orchestration of database and AI operations
 
 - **`utils/cosmos_interface.py`** - Low-level Azure Cosmos DB functions for container creation, document CRUD operations, vector search, and query execution
 

@@ -48,12 +48,10 @@ class CosmicMemory:
         self.openai_embedding_model = None
         self.openai_embedding_dimensions = 512
         self.vector_index = True
-        # Nested dictionary structure: {user_id: {thread_id: {"messages": [], "stack_index": 0}}}
-        self.__memory_stack = {}
-        # Cosmos DB client connection (initialized when connecting)
+        # Nested dictionary structure: {user_id: {thread_id: {"messages": [], "local_index": 0}}}
+        self.__memory_local = {}
         self.cosmos_client = None
         self.credential = None
-        # Azure OpenAI client connection (initialized when connecting)
         self.openai_client = None
         self.token_provider = None
     
@@ -291,14 +289,14 @@ class CosmicMemory:
             except:
                 print(f"Could not serialize data - messages: {messages}, user_id: {user_id}")
 
-    def push_stack(self, messages, user_id, thread_id):
+    def add_local(self, messages, user_id, thread_id):
         """
-        Add a conversation turn to the memory_stack for client-side short-term storage without writing to Azure Cosmos DB.
+        Add a conversation turn to the local memory for client-side short-term storage without writing to Azure Cosmos DB.
 
         Args:
             messages (list): List containing exactly 2 message objects (user and assistant turn).
-            user_id (str): User identifier for organizing the stack.
-            thread_id (str): Thread identifier for organizing the stack.
+            user_id (str): User identifier for organizing the local memory.
+            thread_id (str): Thread identifier for organizing the local memory.
 
         Returns:
             None
@@ -319,32 +317,32 @@ class CosmicMemory:
             raise ValueError("thread_id is required")
         
         # Initialize user_id level if not exists
-        if user_id not in self.__memory_stack:
-            self.__memory_stack[user_id] = {}
+        if user_id not in self.__memory_local:
+            self.__memory_local[user_id] = {}
         
         # Initialize thread_id level if not exists
-        if thread_id not in self.__memory_stack[user_id]:
-            self.__memory_stack[user_id][thread_id] = {
+        if thread_id not in self.__memory_local[user_id]:
+            self.__memory_local[user_id][thread_id] = {
                 "messages": [],
-                "stack_index": 0
+                "local_index": 0
             }
         
         # Append messages to the thread
-        self.__memory_stack[user_id][thread_id]["messages"].append(messages)
+        self.__memory_local[user_id][thread_id]["messages"].append(messages)
     
-    def write_stack(self, user_id, thread_id):
+    def write_local(self, user_id, thread_id):
         """
-        Commit new items from memory_stack to Azure Cosmos DB, starting from stack_index. Only writes items that haven't been persisted yet.
+        Commit new items from local memory to Azure Cosmos DB, starting from local_index. Only writes items that haven't been persisted yet.
 
         Args:
-            user_id (str): User identifier for the stack to write.
-            thread_id (str): Thread identifier for the stack to write.
+            user_id (str): User identifier for the local memory to write.
+            thread_id (str): Thread identifier for the local memory to write.
 
         Returns:
             None
 
         Raises:
-            ValueError: If user_id or thread_id are None, or if the specified stack doesn't exist.
+            ValueError: If user_id or thread_id are None, or if the specified local memory doesn't exist.
         """
         if user_id is None:
             raise ValueError("user_id is required")
@@ -352,35 +350,35 @@ class CosmicMemory:
         if thread_id is None:
             raise ValueError("thread_id is required")
         
-        # Check if user_id and thread_id exist in stack
-        if user_id not in self.__memory_stack or thread_id not in self.__memory_stack[user_id]:
-            print(f"No stack found for user_id: {user_id}, thread_id: {thread_id}")
+        # Check if user_id and thread_id exist in local memory
+        if user_id not in self.__memory_local or thread_id not in self.__memory_local[user_id]:
+            print(f"No local memory found for user_id: {user_id}, thread_id: {thread_id}")
             return
         
-        thread_stack = self.__memory_stack[user_id][thread_id]
-        messages_list = thread_stack["messages"]
-        stack_index = thread_stack["stack_index"]
+        thread_local = self.__memory_local[user_id][thread_id]
+        messages_list = thread_local["messages"]
+        local_index = thread_local["local_index"]
         
-        # Write items starting from stack_index (items after the last written index)
-        for i in range(stack_index, len(messages_list)):
+        # Write items starting from local_index (items after the last written index)
+        for i in range(local_index, len(messages_list)):
             messages = messages_list[i]
             self.write(messages, user_id=user_id, thread_id=thread_id)
         
-        # Update stack_index to the last index written
-        thread_stack["stack_index"] = max(len(messages_list) - 1, 0)
+        # Update local_index to the last index written
+        thread_local["local_index"] = max(len(messages_list) - 1, 0)
         
     
-    def get_stack(self, user_id, thread_id, k=None):
+    def get_local(self, user_id, thread_id, k=None):
         """
-        Get the last k elements from memory_stack for passing to LLM without reading from Azure Cosmos DB. If k is not specified, returns the entire memory_stack for the thread.
+        Get the last k elements from local memory for passing to LLM without reading from Azure Cosmos DB. If k is not specified, returns the entire local memory for the thread.
 
         Args:
-            user_id (str): User identifier for the stack to retrieve.
-            thread_id (str): Thread identifier for the stack to retrieve.
+            user_id (str): User identifier for the local memory to retrieve.
+            thread_id (str): Thread identifier for the local memory to retrieve.
             k (int, optional): Number of most recent turns to retrieve. Defaults to None (returns all).
 
         Returns:
-            list: List of message turns from the stack. Each turn is a list of 2 message objects. Returns empty list if stack doesn't exist.
+            list: List of message turns from the local memory. Each turn is a list of 2 message objects. Returns empty list if local memory doesn't exist.
 
         Raises:
             ValueError: If user_id or thread_id are None.
@@ -391,26 +389,26 @@ class CosmicMemory:
         if thread_id is None:
             raise ValueError("thread_id is required")
         
-        # Check if user_id and thread_id exist in stack
-        if user_id not in self.__memory_stack or thread_id not in self.__memory_stack[user_id]:
+        # Check if user_id and thread_id exist in local memory
+        if user_id not in self.__memory_local or thread_id not in self.__memory_local[user_id]:
             return []
         
-        messages_list = self.__memory_stack[user_id][thread_id]["messages"]
+        messages_list = self.__memory_local[user_id][thread_id]["messages"]
         
         if k is None:
             return messages_list
         return messages_list[-k:] if k > 0 else []
     
-    def pop_stack(self, user_id, thread_id):
+    def pop_local(self, user_id, thread_id):
         """
-        Remove and return the most recently added element from memory_stack for a specific user and thread.
+        Remove and return the most recently added element from local memory for a specific user and thread.
 
         Args:
-            user_id (str): User identifier for the stack.
-            thread_id (str): Thread identifier for the stack.
+            user_id (str): User identifier for the local memory.
+            thread_id (str): Thread identifier for the local memory.
 
         Returns:
-            list: Most recent turn (list of 2 message objects), or None if stack is empty or doesn't exist.
+            list: Most recent turn (list of 2 message objects), or None if local memory is empty or doesn't exist.
 
         Raises:
             ValueError: If user_id or thread_id are None.
@@ -421,29 +419,29 @@ class CosmicMemory:
         if thread_id is None:
             raise ValueError("thread_id is required")
         
-        # Check if user_id and thread_id exist in stack
-        if user_id not in self.__memory_stack or thread_id not in self.__memory_stack[user_id]:
+        # Check if user_id and thread_id exist in local memory
+        if user_id not in self.__memory_local or thread_id not in self.__memory_local[user_id]:
             return None
         
-        thread_stack = self.__memory_stack[user_id][thread_id]
-        messages_list = thread_stack["messages"]
+        thread_local = self.__memory_local[user_id][thread_id]
+        messages_list = thread_local["messages"]
         
         if len(messages_list) > 0:
             result = messages_list.pop()
             
-            # Update stack_index if necessary
-            if len(messages_list) - 1 < thread_stack["stack_index"]:
-                thread_stack["stack_index"] = len(messages_list) - 1
+            # Update local_index if necessary
+            if len(messages_list) - 1 < thread_local["local_index"]:
+                thread_local["local_index"] = len(messages_list) - 1
             
             return result
         return None
     
-    def clear_stack(self, user_id=None, thread_id=None):
+    def clear_local(self, user_id=None, thread_id=None):
         """
-        Clear the client-side memory_stack after committing or when starting a new conversation.
-        If user_id and thread_id are specified, clears only that specific thread's stack.
+        Clear the client-side local memory after committing or when starting a new conversation.
+        If user_id and thread_id are specified, clears only that specific thread's local memory.
         If only user_id is specified, clears all threads for that user.
-        If neither is specified, clears the entire stack.
+        If neither is specified, clears the entire local memory.
 
         Args:
             user_id (str, optional): User identifier. Defaults to None (clears all).
@@ -453,19 +451,19 @@ class CosmicMemory:
             None
         """
         if user_id is None and thread_id is None:
-            # Clear entire stack
-            self.__memory_stack = {}
+            # Clear entire local memory
+            self.__memory_local = {}
         elif user_id is not None and thread_id is None:
             # Clear all threads for a specific user
-            if user_id in self.__memory_stack:
-                del self.__memory_stack[user_id]
+            if user_id in self.__memory_local:
+                del self.__memory_local[user_id]
         elif user_id is not None and thread_id is not None:
             # Clear specific thread for a user
-            if user_id in self.__memory_stack and thread_id in self.__memory_stack[user_id]:
-                del self.__memory_stack[user_id][thread_id]
+            if user_id in self.__memory_local and thread_id in self.__memory_local[user_id]:
+                del self.__memory_local[user_id][thread_id]
                 # If user has no more threads, remove user entry
-                if len(self.__memory_stack[user_id]) == 0:
-                    del self.__memory_stack[user_id]
+                if len(self.__memory_local[user_id]) == 0:
+                    del self.__memory_local[user_id]
         else:
             raise ValueError("Cannot specify thread_id without user_id")
     
@@ -625,10 +623,10 @@ class CosmicMemory:
             print(f"get_id failed: {e}")
             return None
     
-    def summarize_stack(self, thread_memories, thread_id, user_id, write=False):
+    def summarize_local(self, thread_memories, thread_id, user_id, write=False):
         """
         Generate a summary of thread memories using Azure OpenAI.
-        Accepts memories in stack format (list of lists, where each inner list contains 2 message objects).
+        Accepts memories in local memory format (list of lists, where each inner list contains 2 message objects).
 
         Args:
             thread_memories (list): List of conversation turns to summarize. Each turn is a list of 2 message objects.
@@ -666,7 +664,7 @@ class CosmicMemory:
             
             return summary_document
         except Exception as e:
-            print(f"summarize_stack failed: {e}")
+            print(f"summarize_local failed: {e}")
             return None
     
     def summarize_thread(self, thread_id, write=False):
