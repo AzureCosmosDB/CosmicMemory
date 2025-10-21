@@ -70,6 +70,62 @@ For memories written to Azure Cosmos DB, take advantage of advanced and semantic
 - **Entra ID Authentication** 🔐 - Secure access using Azure's identity platform
 - **Vector Embeddings** 🔢 - Automatic embedding generation using Azure OpenAI for semantic search capabilities
 
+
+## Data Models
+
+CosmicMemory stores two types of documents in Azure Cosmos DB:
+
+### Memory Document
+
+One-turn-per-document model for conversation memories:
+
+```json
+{
+  "id": "unique-guid",
+  "type": "memory",
+  "user_id": "user-123",
+  "thread_id": "conversation-guid",
+  "messages": [
+    {
+      "role": "user",
+      "content": "How much fine ground espresso should I use for a double shot?",
+      "token_count": 15
+    },
+    {
+      "role": "agent",
+      "content": "For a double shot (about 60ml output), here are the recommended doses:\n\n- **Light roast**: 18-19 grams\n- **Medium roast**: 17-18 grams\n- **Bold/dark roast**: 16-17 grams\n\nDarker roasts are less dense, so you need slightly less by weight. Start with these ranges and adjust based on your taste and extraction time (aim for 25-30 seconds).",
+      "token_count": 89
+    }
+  ],
+  "embedding": [],
+  "timestamp": "2025-10-18T10:00:00Z"
+}
+```
+
+### Summary Document
+
+AI-generated summaries of conversation threads:
+
+```json
+{
+  "id": "unique-guid",
+  "type": "summary",
+  "user_id": "user-123",
+  "thread_id": "conversation-guid",
+  "summary": "The user asked about making espresso at home. The agent provided detailed information about grind settings, dose amounts for different roasts, and extraction timing.",
+  "facts": [
+    "User is interested in home espresso preparation",
+    "Double shot requires 16-19g depending on roast level",
+    "Extraction should take 25-30 seconds",
+    "Darker roasts need less coffee by weight due to lower density"
+  ],
+  "embedding": [],
+  "token_count": 145,
+  "last_updated": "2025-10-19T10:30:00Z"
+}
+```
+
+
 ## Setup
 
 ### Prerequisites
@@ -511,60 +567,6 @@ memory.search_db("query", k=5, return_details=True)
 memory.get_recent_db(k=10, return_details=True)
 memory.get_all_by_user_db("user-123", return_details=True)
 memory.get_all_by_thread_db("thread-guid", return_details=True)
-```
-
-## Data Models
-
-CosmicMemory stores two types of documents in Azure Cosmos DB:
-
-### Memory Document
-
-One-turn-per-document model for conversation memories:
-
-```json
-{
-  "id": "unique-guid",
-  "type": "memory",
-  "user_id": "user-123",
-  "thread_id": "conversation-guid",
-  "messages": [
-    {
-      "role": "user",
-      "content": "How much fine ground espresso should I use for a double shot?",
-      "token_count": 15
-    },
-    {
-      "role": "agent",
-      "content": "For a double shot (about 60ml output), here are the recommended doses:\n\n- **Light roast**: 18-19 grams\n- **Medium roast**: 17-18 grams\n- **Bold/dark roast**: 16-17 grams\n\nDarker roasts are less dense, so you need slightly less by weight. Start with these ranges and adjust based on your taste and extraction time (aim for 25-30 seconds).",
-      "token_count": 89
-    }
-  ],
-  "embedding": [],
-  "timestamp": "2025-10-18T10:00:00Z"
-}
-```
-
-### Summary Document
-
-AI-generated summaries of conversation threads:
-
-```json
-{
-  "id": "unique-guid",
-  "type": "summary",
-  "user_id": "user-123",
-  "thread_id": "conversation-guid",
-  "summary": "The user asked about making espresso at home. The agent provided detailed information about grind settings, dose amounts for different roasts, and extraction timing.",
-  "facts": [
-    "User is interested in home espresso preparation",
-    "Double shot requires 16-19g depending on roast level",
-    "Extraction should take 25-30 seconds",
-    "Darker roasts need less coffee by weight due to lower density"
-  ],
-  "embedding": [],
-  "token_count": 145,
-  "last_updated": "2025-10-19T10:30:00Z"
-}
 ```
 
 ## Usage Guidance
