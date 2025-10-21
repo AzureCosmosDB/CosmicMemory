@@ -133,14 +133,7 @@ CosmicMemory uses single reusable client connections for both Cosmos DB and Azur
 
 **Environment Variables for `load_config()`:**
 
-Create a `.env` file in your project root with your Azure configuration details. You can use the `example.env` file as a template:
-
-```bash
-cp example.env .env
-# Then edit .env with your actual values
-```
-
-Example `.env` file content:
+Create a `.env` file in your project root with your Azure configuration details. You can use the `example.env` file as a template to get started.
 
 ### Create Memory Store
 
