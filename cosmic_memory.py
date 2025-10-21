@@ -204,7 +204,7 @@ class CosmicMemory:
             print(f"create_memory_store failed: {e}")
             return False
     
-    def write(self, messages, user_id=None, thread_id=None):
+    def add_db(self, messages, user_id=None, thread_id=None):
         """
         Store conversation messages with automatic token counting and optional embeddings.
 
@@ -330,13 +330,13 @@ class CosmicMemory:
         # Append messages to the thread
         self.__memory_local[user_id][thread_id]["messages"].append(messages)
     
-    def write_local(self, user_id, thread_id):
+    def add_to_db(self, user_id, thread_id):
         """
         Commit new items from local memory to Azure Cosmos DB, starting from local_index. Only writes items that haven't been persisted yet.
 
         Args:
-            user_id (str): User identifier for the local memory to write.
-            thread_id (str): Thread identifier for the local memory to write.
+            user_id (str): User identifier for the local memory to add to database.
+            thread_id (str): Thread identifier for the local memory to add to database.
 
         Returns:
             None
@@ -362,7 +362,7 @@ class CosmicMemory:
         # Write items starting from local_index (items after the last written index)
         for i in range(local_index, len(messages_list)):
             messages = messages_list[i]
-            self.write(messages, user_id=user_id, thread_id=thread_id)
+            self.add_db(messages, user_id=user_id, thread_id=thread_id)
         
         # Update local_index to the last index written
         thread_local["local_index"] = max(len(messages_list) - 1, 0)
@@ -467,9 +467,9 @@ class CosmicMemory:
         else:
             raise ValueError("Cannot specify thread_id without user_id")
     
-    def search(self, query, k, user_id=None, thread_id=None, return_details=False, return_score=False):
+    def search_db(self, query, k, user_id=None, thread_id=None, return_details=False, return_score=False):
         """
-        Search memories using semantic similarity based on query text.
+        Search memories in Azure Cosmos DB using semantic similarity based on query text.
 
         Args:
             query (str): Search query text.
@@ -509,12 +509,12 @@ class CosmicMemory:
                 return None
                 
         except Exception as e:
-            print(f"search failed: {e}")
+            print(f"search_db failed: {e}")
             return None
     
-    def get_recent(self, k, user_id=None, thread_id=None, return_details=False):
+    def get_recent_db(self, k, user_id=None, thread_id=None, return_details=False):
         """
-        Retrieve the most recent memories ordered by timestamp.
+        Retrieve the most recent memories ordered by timestamp from Azure Cosmos DB.
         Either user_id or thread_id must be provided.
 
         Args:
@@ -544,12 +544,12 @@ class CosmicMemory:
             return results
                 
         except Exception as e:
-            print(f"get_recent failed: {e}")
+            print(f"get_recent_db failed: {e}")
             return None
     
-    def get_all_by_user(self, user_id, return_details=False):
+    def get_all_by_user_db(self, user_id, return_details=False):
         """
-        Retrieve all memories for a specific user.
+        Retrieve all memories for a specific user from Azure Cosmos DB.
 
         Args:
             user_id (str): User identifier.
@@ -570,12 +570,12 @@ class CosmicMemory:
             return results
                 
         except Exception as e:
-            print(f"get_all_by_user failed: {e}")
+            print(f"get_all_by_user_db failed: {e}")
             return None
     
-    def get_all_by_thread(self, thread_id, return_details=False):
+    def get_all_by_thread_db(self, thread_id, return_details=False):
         """
-        Retrieve all memories for a specific conversation thread.
+        Retrieve all memories for a specific conversation thread from Azure Cosmos DB.
 
         Args:
             thread_id (str): Thread identifier.
@@ -596,12 +596,12 @@ class CosmicMemory:
             return results
                 
         except Exception as e:
-            print(f"get_all_by_thread failed: {e}")
+            print(f"get_all_by_thread_db failed: {e}")
             return None
     
-    def get_id(self, memory_id):
+    def get_id_db(self, memory_id):
         """
-        Retrieve a specific memory by its document ID.
+        Retrieve a specific memory by its document ID from Azure Cosmos DB.
 
         Args:
             memory_id (str): Unique document identifier.
@@ -620,7 +620,7 @@ class CosmicMemory:
             return result
                 
         except Exception as e:
-            print(f"get_id failed: {e}")
+            print(f"get_id_db failed: {e}")
             return None
     
     def summarize_local(self, thread_memories, thread_id, user_id, write=False):
@@ -667,12 +667,12 @@ class CosmicMemory:
             print(f"summarize_local failed: {e}")
             return None
     
-    def summarize_thread(self, thread_id, write=False):
+    def summarize_db(self, thread_id, write=False):
         """
-        Retrieve all memories for a thread and generate a summary using Azure OpenAI.
+        Retrieve all memories for a thread from Azure Cosmos DB and generate a summary using Azure OpenAI.
 
         Args:
-            thread_id (str): Thread identifier to retrieve and summarize.
+            thread_id (str): Thread identifier to retrieve and summarize from database.
             write (bool, optional): If True, persist summary to Cosmos DB. Defaults to False.
 
         Returns:
@@ -735,12 +735,12 @@ class CosmicMemory:
             
             return summary_document
         except Exception as e:
-            print(f"summarize_thread failed: {e}")
+            print(f"summarize_db failed: {e}")
             return None
     
-    def get_summary(self, thread_id, return_details=False):
+    def get_summary_db(self, thread_id, return_details=False):
         """
-        Retrieve the summary document for a specific thread from Cosmos DB.
+        Retrieve the summary document for a specific thread from Azure Cosmos DB.
 
         Args:
             thread_id (str): Thread identifier.
@@ -759,15 +759,15 @@ class CosmicMemory:
             )
             return result
         except Exception as e:
-            print(f"get_summary failed: {e}")
+            print(f"get_summary_db failed: {e}")
             return None
     
-    def delete(self, memory_id):
+    def delete_from_db(self, memory_id):
         """
         Remove a memory document from Azure Cosmos DB by its ID.
 
         Args:
-            memory_id (str): Unique document identifier to delete.
+            memory_id (str): Unique document identifier to delete from database.
 
         Returns:
             None
@@ -788,5 +788,5 @@ class CosmicMemory:
             else:
                 print(f"Failed to delete memory from Azure Cosmos DB")
         except Exception as e:
-            print(f"delete_mem called but failed")
+            print(f"delete_from_db called but failed")
             print(f"Error: {e}")

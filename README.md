@@ -168,16 +168,16 @@ messages = [
 ]
 
 # Write with auto-generated user_id and thread_id
-memory.write(messages)
+memory.add_db(messages)
 
 # Write with a specific user ID
-memory.write(messages, user_id="user-123")
+memory.add_db(messages, user_id="user-123")
 
 # Write with a specific thread ID (to continue an existing conversation)
-memory.write(messages, thread_id="thread-guid-456")
+memory.add_db(messages, thread_id="thread-guid-456")
 
 # Write with both user_id and thread_id
-memory.write(messages, user_id="user-123", thread_id="thread-guid-456")
+memory.add_db(messages, user_id="user-123", thread_id="thread-gui d-456")
 ```
 
 ### Client-Side Local Memory 
@@ -251,13 +251,13 @@ last_item = memory.pop_local(user_id="user-123", thread_id="thread-456")
 # Returns the last item added, or None if local memory is empty
 ```
 
-#### Write Local Memory to Azure Cosmos DB
+#### Add Local Memory to Database
 
 Persist the accumulated memories from the local memory to Azure Cosmos DB. This will add the latest memories since the last write to the container to prevent redundant or duplicate memories. If this is the first write, all the memories in the local memory will be added to the container.
 
 ```python
-# Write all local memory items for a specific user/thread to Azure Cosmos DB
-memory.write_local(user_id="user-123", thread_id="thread-456")
+# Add all local memory items for a specific user/thread to Azure Cosmos DB
+memory.add_to_db(user_id="user-123", thread_id="thread-456")
 
 # All memories are now persisted with the specified user_id and thread_id
 ```
@@ -295,7 +295,7 @@ memory.add_local([
 context = memory.get_local(user_id="user-456", thread_id="thread-789", k=2)
 
 # When ready, batch persist to database
-memory.write_local(user_id="user-456", thread_id="thread-789")
+memory.add_to_db(user_id="user-456", thread_id="thread-789")
 
 # Clear local memory for this user/thread when starting a new conversation
 memory.clear_local(user_id="user-456", thread_id="thread-789")
@@ -309,22 +309,22 @@ Find contextually relevant memories using vector similarity:
 
 ```python
 # Search for memories related to "weather"
-memory.search("weather forecast", k=5)
+memory.search_db("weather forecast", k=5)
 
 # Combine filters - search for a user in a specific thread
-memory.search("weather forecast", k=5, user_id="user-123", thread_id="thread-guid")
+memory.search_db("weather forecast", k=5, user_id="user-123", thread_id="thread-guid")
 
 # Include similarity scores in results
-memory.search("weather forecast", k=5, return_score=True)
+memory.search_db("weather forecast", k=5, return_score=True)
 
 # Include additional details in results (id, user_id, started_at, ended_at)
-memory.search("weather forecast", k=5, return_details=True)
+memory.search_db("weather forecast", k=5, return_details=True)
 
 ```
 
 **Sample usage:**
 ```python
-memory.search("weather forecast", k=5)
+memory.search_db("weather forecast", k=5)
 ```
 
 
@@ -353,13 +353,13 @@ Retrieve the most recent interactions chronologically:
 
 ```python
 # Get the 10 most recent memories
-memory.get_recent(k=10)
+memory.get_recent_db(k=10)
 
 # Combine filters - recent memories for a user in a specific thread
-memory.get_recent(k=10, user_id="user-123", thread_id="thread-guid")
+memory.get_recent_db(k=10, user_id="user-123", thread_id="thread-guid")
 
 # Include additional details in results (id, user_id, started_at, ended_at)
-memory.get_recent(k=10, return_details=True)
+memory.get_recent_db(k=10, return_details=True)
 ```
 
 **Sample Output:**
@@ -387,10 +387,10 @@ Retrieve all memories associated with a specific user ID:
 
 ```python
 # Get all memories for a user
-memory.get_all_by_user("user-123")
+memory.get_all_by_user_db("user-123")
 
 # Include additional details in results (id, user_id, started_at, ended_at)
-memory.get_all_by_user("user-123", return_details=True)
+memory.get_all_by_user_db("user-123", return_details=True)
 ```
 
 #### Get All Memories for a Thread
@@ -399,10 +399,10 @@ Retrieve all memories within a specific conversation thread:
 
 ```python
 # Get all memories for a thread
-memory.get_all_by_thread("thread-guid-here")
+memory.get_all_by_thread_db("thread-guid-here")
 
 # Include additional details in results (id, user_id, started_at, ended_at)
-memory.get_all_by_thread("thread-guid-here", return_details=True)
+memory.get_all_by_thread_db("thread-guid-here", return_details=True)
 ```
 
 #### Get Memory by ID
@@ -411,7 +411,7 @@ Retrieve a specific memory using its document ID:
 
 ```python
 # Get a specific memory by its ID
-memory.get_id("document-id-here")
+memory.get_id_db("document-id-here")
 ```
 
 ### Summarize Conversations
@@ -443,16 +443,16 @@ summary = memory.summarize_local(
 
 **Use Case:** Summarize conversations currently held in RAM before writing to the database, useful for session-based summarization.
 
-#### Summarize Database Thread (`summarize_thread`)
+#### Summarize Database Thread (`summarize_db`)
 
 Automatically retrieve and summarize an entire conversation thread stored in Azure Cosmos DB:
 
 ```python
 # Generate summary without persisting (preview mode)
-summary = memory.summarize_thread("thread-guid-here", write=False)
+summary = memory.summarize_db("thread-guid-here", write=False)
 
 # Generate and persist summary to Azure Cosmos DB
-summary = memory.summarize_thread("thread-guid-here", write=True)
+summary = memory.summarize_db("thread-guid-here", write=True)
 ```
 
 **Use Case:** Summarize complete conversation threads already persisted to Cosmos DB. Automatically retrieves all thread memories and extracts user_id.
@@ -484,10 +484,10 @@ Get a previously generated summary for a conversation thread:
 
 ```python
 # Get summary with just summary and facts
-summary = memory.get_summary("thread-guid-here")
+summary = memory.get_summary_db("thread-guid-here")
 
 # Get summary with additional metadata (thread_id, user_id, token_count, last_updated)
-summary = memory.get_summary("thread-guid-here", return_details=True)
+summary = memory.get_summary_db("thread-guid-here", return_details=True)
 ```
 
 **Sample Output (with return_details=True):**
@@ -513,15 +513,15 @@ summary = memory.get_summary("thread-guid-here", return_details=True)
 Remove specific memories by their document ID:
 
 ```python
-memory.delete("document-id-here")
+memory.delete_from_db("document-id-here")
 ```
 
 **Note:** To get document IDs and metadata, use `return_details=True` when retrieving memories:
 ```python
-memory.search("query", k=5, return_details=True)
-memory.get_recent(k=10, return_details=True)
-memory.get_all_by_user("user-123", return_details=True)
-memory.get_all_by_thread("thread-guid", return_details=True)
+memory.search_db("query", k=5, return_details=True)
+memory.get_recent_db(k=10, return_details=True)
+memory.get_all_by_user_db("user-123", return_details=True)
+memory.get_all_by_thread_db("thread-guid", return_details=True)
 ```
 
 ## Data Models
@@ -586,10 +586,10 @@ AI-generated summaries of conversation threads:
 CosmicMemory offers flexible memory management strategies to match your application's needs:
 
 **In-Memory Local for Active Sessions**  
-Use the client-side local memory (`add_local`, `get_local`, `pop_local`) to track short-term conversational context during active sessions. This approach provides instant access to recent interactions without database overhead, ideal for maintaining context across multiple LLM calls within a single conversation. Batch persist accumulated memories to Azure Cosmos DB using `write_local()` when the session concludes or at natural conversation boundaries.
+Use the client-side local memory (`add_local`, `get_local`, `pop_local`) to track short-term conversational context during active sessions. This approach provides instant access to recent interactions without database overhead, ideal for maintaining context across multiple LLM calls within a single conversation. Batch persist accumulated memories to Azure Cosmos DB using `add_to_db()` when the session concludes or at natural conversation boundaries.
 
 **Direct Database Operations**  
-For immediate persistence requirements, use `write()` to store memories directly to Azure Cosmos DB as conversations occur. This ensures data durability from the moment of creation and is well-suited for stateless architectures, long-running conversations, or scenarios where every interaction must be preserved immediately.
+For immediate persistence requirements, use `add_db()` to store memories directly to Azure Cosmos DB as conversations occur. This ensures data durability from the moment of creation and is well-suited for stateless architectures, long-running conversations, or scenarios where every interaction must be preserved immediately.
 
 ### Advanced Retrieval
 
@@ -605,8 +605,8 @@ Optimize long-running conversations with AI-generated summaries:
 
 1. **Generate & Persist** - At the end of conversation threads or sessions, generate and store thread summaries with extracted key facts:
    - Use `summarize_local(local_memories, thread_id, user_id, write=True)` to summarize in-memory conversations from the client-side local memory
-   - Use `summarize_thread(thread_id, write=True)` to automatically retrieve and summarize entire threads already stored in Cosmos DB
-2. **Resume Sessions** - When resuming a conversation, retrieve the summary using `get_summary()` to restore context without loading entire conversation histories
+   - Use `summarize_db(thread_id, write=True)` to automatically retrieve and summarize entire threads already stored in Cosmos DB
+2. **Resume Sessions** - When resuming a conversation, retrieve the summary using `get_summary_db()` to restore context without loading entire conversation histories
 3. **Preview Mode** - Use `write=False` with either method to generate summaries on-demand without database writes, useful for testing or temporary previews
 
 This pattern reduces token consumption in LLM prompts while maintaining conversational continuity across sessions.
@@ -629,21 +629,21 @@ This pattern reduces token consumption in LLM prompts while maintaining conversa
 
 ##### Memory Operations
 
-- **`write(messages, user_id=None, thread_id=None)`** - Write memories directly to Azure Cosmos DB with automatic token counting and optional embedding generation. Optionally specify user_id and/or thread_id to organize memories by user and conversation thread.
+- **`add_db(messages, user_id=None, thread_id=None)`** - Write memories directly to Azure Cosmos DB with automatic token counting and optional embedding generation. Optionally specify user_id and/or thread_id to organize memories by user and conversation thread.
 - **`add_local(messages, user_id, thread_id)`** - Add a conversation turn (2 messages) to the client-side local memory for a specific user and thread. Requires both user_id and thread_id parameters.
 - **`get_local(user_id, thread_id, k=None)`** - Retrieve the last k conversation turns from the client-side local memory for a specific user and thread. If k is not specified, returns the entire local memory for that user/thread.
 - **`pop_local(user_id, thread_id)`** - Remove and return the most recently added element from the local memory for a specific user and thread.
-- **`write_local(user_id, thread_id)`** - Write newly accumulated items from local memory to Azure Cosmos DB for a specific user and thread.
+- **`add_to_db(user_id, thread_id)`** - Add newly accumulated items from local memory to Azure Cosmos DB for a specific user and thread.
 - **`clear_local(user_id=None, thread_id=None)`** - Clear the client-side local memory. Clear all local memory (no params), all threads for a user (user_id only), or a specific user/thread (both params).
-- **`search(query, k, user_id=None, thread_id=None, return_details=False, return_score=False)`** - Search for semantically similar memories using vector similarity, optionally filtered by user_id and/or thread_id. Set return_score=True to include similarity scores.
-- **`get_recent(k, user_id=None, thread_id=None, return_details=False)`** - Retrieve the k most recent memories ordered by timestamp, optionally filtered by user_id and/or thread_id
-- **`get_all_by_user(user_id, return_details=False)`** - Retrieve all memories for a specific user.
-- **`get_all_by_thread(thread_id, return_details=False)`** - Retrieve all memories for a specific conversation thread.
-- **`get_id(memory_id)`** - Retrieve a specific memory by its document id.
+- **`search_db(query, k, user_id=None, thread_id=None, return_details=False, return_score=False)`** - Search for semantically similar memories in Azure Cosmos DB using vector similarity, optionally filtered by user_id and/or thread_id. Set return_score=True to include similarity scores.
+- **`get_recent_db(k, user_id=None, thread_id=None, return_details=False)`** - Retrieve the k most recent memories from Azure Cosmos DB ordered by timestamp, optionally filtered by user_id and/or thread_id.
+- **`get_all_by_user_db(user_id, return_details=False)`** - Retrieve all memories for a specific user from Azure Cosmos DB.
+- **`get_all_by_thread_db(thread_id, return_details=False)`** - Retrieve all memories for a specific conversation thread from Azure Cosmos DB.
+- **`get_id_db(memory_id)`** - Retrieve a specific memory by its document id from Azure Cosmos DB.
 - **`summarize_local(thread_memories, thread_id, user_id, write=False)`** - Generate an AI-powered summary of conversation turns stored in the client-side local memory (RAM). Accepts list of lists format where each inner list contains 2 message objects. When write=True, generates embeddings and persists to Azure Cosmos DB.
-- **`summarize_thread(thread_id, write=False)`** - Automatically retrieve all memories for a thread from Cosmos DB and generate a summary. Automatically extracts user_id from the first memory document. When write=True, persists summary to Cosmos DB.
-- **`get_summary(thread_id, return_details=False)`** - Retrieve a previously generated summary for a conversation thread. When return_details=True, includes thread_id, user_id, token_count, and last_updated fields.
-- **`delete(memory_id)`** - Delete a memory by its document id.
+- **`summarize_db(thread_id, write=False)`** - Automatically retrieve all memories for a thread from Azure Cosmos DB and generate a summary. Automatically extracts user_id from the first memory document. When write=True, persists summary to Cosmos DB.
+- **`get_summary_db(thread_id, return_details=False)`** - Retrieve a previously generated summary for a conversation thread from Azure Cosmos DB. When return_details=True, includes thread_id, user_id, token_count, and last_updated fields.
+- **`delete_from_db(memory_id)`** - Delete a memory by its document id from Azure Cosmos DB.
 
 
 ## Architecture
