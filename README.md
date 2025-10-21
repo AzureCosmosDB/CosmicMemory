@@ -76,9 +76,10 @@ For memories written to Azure Cosmos DB, take advantage of advanced and semantic
 ### Prerequisites
 
 - Python 3.8+
-- Azure Cosmos DB account with a database and container
-- Azure OpenAI resource with an embedding model deployed
-- Azure authentication configured (Azure CLI login or managed identity)
+- Azure Cosmos DB account
+- Vector search enabled on your Azure Cosmos DB account [(learn more)](https://learn.microsoft.com/azure/cosmos-db/nosql/vector-search#enable-the-vector-indexing-and-search-feature)
+- Azure OpenAI resource with an embedding and completions model deployed
+- Azure authentication configured (Azure Entra ID or Managed Identity)
 
 ### Installation
 
@@ -151,11 +152,7 @@ Create the Azure Cosmos DB database and container with full-text search and vect
 memory.create_memory_store()
 ```
 
-This will create a container with:
-- **Vector indexing** on the `/embedding` path using quantizedFlat vector index
-- **Full-text search indexes** on `/messages/[0]/content` and `/messages/[1]/content`
-- **Partition key** on `/thread_id` for efficient thread-based write and read operations
-- **Embedding dimensions** of 512 with cosine distance
+This will create a container setup for your memories and retrieval operations including vector and full-text search:
 
 ### Add Memories
 
