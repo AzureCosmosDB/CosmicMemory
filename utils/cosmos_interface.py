@@ -223,9 +223,9 @@ def semantic_search(client, query_embedding, k, cosmos_db_database, cosmos_db_co
         
         # Build SELECT clause based on return_details and return_score parameters
         if return_details and return_score:
-            select_clause = "c.id, c.user_id, c.started_at, c.ended_at, c.messages, VectorDistance(c.embedding, @embedding) AS similarity_score"
+            select_clause = "c.id, c.user_id, c.timestamp, c.messages, VectorDistance(c.embedding, @embedding) AS similarity_score"
         elif return_details:
-            select_clause = "c.id, c.user_id, c.started_at, c.ended_at, c.messages"
+            select_clause = "c.id, c.user_id, c.timestamp, c.messages"
         elif return_score:
             select_clause = "c.messages, VectorDistance(c.embedding, @embedding) AS similarity_score"
         else:
@@ -314,17 +314,17 @@ def recent_memories(client, k, cosmos_db_database, cosmos_db_container, user_id=
         # Build SELECT clause based on return_details parameter
         if return_details:
             query = f"""
-                SELECT TOP @k c.messages, c.started_at, c.ended_at
+                SELECT TOP @k c.messages, c.timestamp
                 FROM c
                 {where_clause}
-                ORDER BY c.started_at DESC
+                ORDER BY c.timestamp DESC
             """
         else:
             query = f"""
                 SELECT TOP @k c.messages
                 FROM c
                 {where_clause}
-                ORDER BY c.started_at DESC
+                ORDER BY c.timestamp DESC
             """
         
         # Execute query
@@ -341,11 +341,10 @@ def recent_memories(client, k, cosmos_db_database, cosmos_db_container, user_id=
         for result in results:
             if 'messages' in result and len(result['messages']) == 2:
                 if return_details:
-                    # Include messages with token counts, plus timestamps
+                    # Include messages with token counts, plus timestamp
                     turn_data = result['messages'].copy()
                     turn_data.append({
-                        "started_at": result.get('started_at'),
-                        "ended_at": result.get('ended_at')
+                        "timestamp": result.get('timestamp')
                     })
                     formatted_results.append(turn_data)
                 else:
@@ -401,7 +400,7 @@ def get_memories_by_user(client, user_id, cosmos_db_database, cosmos_db_containe
     """
     Retrieve all memory documents for a specific user.
     Returns a list of lists, where each inner list contains two message objects (user and assistant) representing one turn.
-    If return_details=True, each turn list also includes started_at, ended_at timestamps and token counts are included in messages.
+    If return_details=True, each turn list also includes timestamp and token counts are included in messages.
     
     Args:
         client: CosmosClient instance to use for the operation
@@ -418,17 +417,17 @@ def get_memories_by_user(client, user_id, cosmos_db_database, cosmos_db_containe
         # Build SELECT clause based on return_details parameter
         if return_details:
             query = """
-                SELECT c.messages, c.started_at, c.ended_at
+                SELECT c.messages, c.timestamp
                 FROM c
                 WHERE c.user_id = @user_id AND c.type = 'memory'
-                ORDER BY c.started_at ASC
+                ORDER BY c.timestamp ASC
             """
         else:
             query = """
                 SELECT c.messages
                 FROM c
                 WHERE c.user_id = @user_id AND c.type = 'memory'
-                ORDER BY c.started_at ASC
+                ORDER BY c.timestamp ASC
             """
         
         parameters = [
@@ -447,11 +446,10 @@ def get_memories_by_user(client, user_id, cosmos_db_database, cosmos_db_containe
         for result in results:
             if 'messages' in result and len(result['messages']) == 2:
                 if return_details:
-                    # Include messages with token counts, plus timestamps
+                    # Include messages with token counts, plus timestamp
                     turn_data = result['messages'].copy()
                     turn_data.append({
-                        "started_at": result.get('started_at'),
-                        "ended_at": result.get('ended_at')
+                        "timestamp": result.get('timestamp')
                     })
                     formatted_results.append(turn_data)
                 else:
@@ -468,7 +466,7 @@ def get_memories_by_thread(client, thread_id, cosmos_db_database, cosmos_db_cont
     """
     Retrieve all memory documents for a specific thread.
     Returns a list of lists, where each inner list contains two message objects (user and assistant) representing one turn.
-    If return_details=True, each turn list also includes started_at, ended_at timestamps and token counts are included in messages.
+    If return_details=True, each turn list also includes timestamp and token counts are included in messages.
     
     Args:
         client: CosmosClient instance to use for the operation
@@ -485,17 +483,17 @@ def get_memories_by_thread(client, thread_id, cosmos_db_database, cosmos_db_cont
         # Build SELECT clause based on return_details parameter
         if return_details:
             query = """
-                SELECT c.messages, c.started_at, c.ended_at
+                SELECT c.messages, c.timestamp
                 FROM c
                 WHERE c.thread_id = @thread_id AND c.type = 'memory'
-                ORDER BY c.started_at ASC
+                ORDER BY c.timestamp ASC
             """
         else:
             query = """
                 SELECT c.messages
                 FROM c
                 WHERE c.thread_id = @thread_id AND c.type = 'memory'
-                ORDER BY c.started_at ASC
+                ORDER BY c.timestamp ASC
             """
         
         parameters = [
@@ -514,11 +512,10 @@ def get_memories_by_thread(client, thread_id, cosmos_db_database, cosmos_db_cont
         for result in results:
             if 'messages' in result and len(result['messages']) == 2:
                 if return_details:
-                    # Include messages with token counts, plus timestamps
+                    # Include messages with token counts, plus timestamp
                     turn_data = result['messages'].copy()
                     turn_data.append({
-                        "started_at": result.get('started_at'),
-                        "ended_at": result.get('ended_at')
+                        "timestamp": result.get('timestamp')
                     })
                     formatted_results.append(turn_data)
                 else:

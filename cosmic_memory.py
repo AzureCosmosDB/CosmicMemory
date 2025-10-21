@@ -242,8 +242,7 @@ class CosmicMemory:
                 "user_id": user_id,
                 "thread_id": thread_id,  # Use provided thread_id or generated GUID
                 "messages": messages_with_tokens,
-                "started_at": datetime.now().isoformat() + "Z",
-                "ended_at": datetime.now().isoformat() + "Z"
+                "timestamp": datetime.now().isoformat() + "Z"
             }
             
             # Generate embedding if vector_index is enabled
@@ -701,7 +700,7 @@ class CosmicMemory:
                 SELECT TOP 1 c.user_id
                 FROM c
                 WHERE c.thread_id = @thread_id AND c.type = 'memory'
-                ORDER BY c.started_at ASC
+                ORDER BY c.timestamp ASC
             """
             parameters = [{"name": "@thread_id", "value": thread_id}]
             results = list(container.query_items(query=query, parameters=parameters, enable_cross_partition_query=False))

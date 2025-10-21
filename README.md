@@ -317,7 +317,7 @@ memory.search_db("weather forecast", k=5, user_id="user-123", thread_id="thread-
 # Include similarity scores in results
 memory.search_db("weather forecast", k=5, return_score=True)
 
-# Include additional details in results (id, user_id, started_at, ended_at)
+# Include additional details in results (id, user_id, timestamp)
 memory.search_db("weather forecast", k=5, return_details=True)
 
 ```
@@ -358,7 +358,7 @@ memory.get_recent_db(k=10)
 # Combine filters - recent memories for a user in a specific thread
 memory.get_recent_db(k=10, user_id="user-123", thread_id="thread-guid")
 
-# Include additional details in results (id, user_id, started_at, ended_at)
+# Include additional details in results (id, user_id, timestamp)
 memory.get_recent_db(k=10, return_details=True)
 ```
 
@@ -389,7 +389,7 @@ Retrieve all memories associated with a specific user ID:
 # Get all memories for a user
 memory.get_all_by_user_db("user-123")
 
-# Include additional details in results (id, user_id, started_at, ended_at)
+# Include additional details in results (id, user_id, timestamp)
 memory.get_all_by_user_db("user-123", return_details=True)
 ```
 
@@ -401,7 +401,7 @@ Retrieve all memories within a specific conversation thread:
 # Get all memories for a thread
 memory.get_all_by_thread_db("thread-guid-here")
 
-# Include additional details in results (id, user_id, started_at, ended_at)
+# Include additional details in results (id, user_id, timestamp)
 memory.get_all_by_thread_db("thread-guid-here", return_details=True)
 ```
 
@@ -551,8 +551,7 @@ One-turn-per-document model for conversation memories:
     }
   ],
   "embedding": [],
-  "started_at": "2025-10-18T10:00:00Z",
-  "ended_at": "2025-10-18T10:00:45Z"
+  "timestamp": "2025-10-18T10:00:00Z"
 }
 ```
 
