@@ -1,14 +1,13 @@
-"""
-CosmicMemory - A memory management class for Azure Cosmos DB and OpenAI integration.
-"""
 import json
 import uuid
 import os
 import tiktoken
 from datetime import datetime
 from dotenv import load_dotenv
-from azure.identity import DefaultAzureCredential
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from azure.cosmos import CosmosClient
+from openai import AzureOpenAI
+
 from utils.processing import generate_embedding, summarize_thread
 from utils.cosmos_interface import (
     create_container,
@@ -103,14 +102,12 @@ class CosmicMemory:
         
         # Get token provider for Azure OpenAI if not already created
         if not self.token_provider:
-            from azure.identity import get_bearer_token_provider
             self.token_provider = get_bearer_token_provider(
                 self.credential,
                 "https://cognitiveservices.azure.com/.default"
             )
         
         # Create Azure OpenAI client with Entra ID authentication
-        from openai import AzureOpenAI
         self.openai_client = AzureOpenAI(
             azure_endpoint=self.openai_endpoint,
             api_version="2024-02-01",
