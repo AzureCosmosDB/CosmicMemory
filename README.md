@@ -7,6 +7,11 @@
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Azure%20Cosmos%20DB-0077B5?logo=linkedin)](https://www.linkedin.com/showcase/azure-cosmos-db/)
 [![YouTube](https://img.shields.io/badge/YouTube-Azure%20Cosmos%20DB-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@AzureCosmosDB)
 
+> **📘 Sample Framework Notice**  
+> This is a same framwork showcasing storage, retrieval, and processing patterns for agentic memories in Azure Cosmos DB. This repository serves as inspiration and reference for implementing memory management in AI agent applications.
+> 
+> **⚠️ Important:** This repository is provided for demonstrative purposes. No guarantees exist regarding maintenance, bug fixes, continued development, or supportability from Microsoft. However, you're welcome to this code as a starting point or inspiration for your own implementations.
+
 CosmicMemory is a memory management framework for AI agents that implements a two-tier memory architecture: **short-term memories** for active conversation threads and **long-term memories** for efficient context retrieval.
 
 **Short-Term Memories (Active Threads)**  
