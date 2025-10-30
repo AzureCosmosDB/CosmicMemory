@@ -21,7 +21,7 @@ Generate AI-powered summaries and extract key facts from conversation threads an
 
 ![CosmicMemory Architecture](design.png)
 
-## Structure Architecture
+## Structure
 
 CosmicMemory follows a modular architecture with clear separation of concerns:
 
