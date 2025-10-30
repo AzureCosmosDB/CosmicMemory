@@ -10,7 +10,7 @@
  
 > **⚠️ Important:** This repository is provided as is. No guarantees exist regarding performance, maintenance, bug fixes, continued development, or supportability. However, you're welcome to this code as a starting point or inspiration for your own implementations.
 
-CosmicMemory is a memory **sample** framework for AI agents that implements a two-tier memory architecture: **short-term memories** for active conversation threads and **long-term memories** for efficient context retrieval.
+CosmicMemory is a memory **sample** framework for AI agents that implements a two-tier memory architecture: **short-term memories** for persisting active or recent conversation threads and **long-term memories** for efficient context storage and retrieval.
 
 **Short-Term Memories (Active Threads)**  
 Store active conversation threads in client-side RAM (local) for immediate access during ongoing sessions. These memories provide full conversational context to your LLM with zero latency. Persist accumulated threadsin Azure Cosmos DB for durability and enable advanced retrieval capabilities including semantic search across conversations.
