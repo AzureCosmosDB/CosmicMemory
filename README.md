@@ -7,12 +7,10 @@
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Azure%20Cosmos%20DB-0077B5?logo=linkedin)](https://www.linkedin.com/showcase/azure-cosmos-db/)
 [![YouTube](https://img.shields.io/badge/YouTube-Azure%20Cosmos%20DB-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@AzureCosmosDB)
 
-> **📘 Sample Framework Notice**  
-> This is a same framwork showcasing storage, retrieval, and processing patterns for agentic memories in Azure Cosmos DB. This repository serves as inspiration and reference for implementing memory management in AI agent applications.
-> 
-> **⚠️ Important:** This repository is provided for demonstrative purposes. No guarantees exist regarding maintenance, bug fixes, continued development, or supportability from Microsoft. However, you're welcome to this code as a starting point or inspiration for your own implementations.
+ 
+> **⚠️ Important:** This repository is provided as is. No guarantees exist regarding maintenance, bug fixes, continued development, or supportability. However, you're welcome to this code as a starting point or inspiration for your own implementations.
 
-CosmicMemory is a memory management framework for AI agents that implements a two-tier memory architecture: **short-term memories** for active conversation threads and **long-term memories** for efficient context retrieval.
+CosmicMemory is a memory **sample** framework for AI agents that implements a two-tier memory architecture: **short-term memories** for active conversation threads and **long-term memories** for efficient context retrieval.
 
 **Short-Term Memories (Active Threads)**  
 Store active conversation threads in client-side RAM (local) for immediate access during ongoing sessions. These memories provide full conversational context to your LLM with zero latency. Persist accumulated threadsin Azure Cosmos DB for durability and enable advanced retrieval capabilities including semantic search across conversations.
@@ -140,6 +138,8 @@ AI-generated summaries of conversation threads:
 - Vector search enabled on your Azure Cosmos DB account [(learn more)](https://learn.microsoft.com/azure/cosmos-db/nosql/vector-search#enable-the-vector-indexing-and-search-feature)
 - Azure OpenAI resource with an embedding and completions model deployed
 - Azure authentication configured (Azure Entra ID or Managed Identity)
+- [Control-Plane and Data-Plane RBAC](https://learn.microsoft.com/azure/cosmos-db/nosql/how-to-connect-role-based-access-control?pivots=azure-cli) for the identiy is required
+
 
 ### Installation
 
@@ -663,36 +663,6 @@ CosmicMemory/
 - **`cosmic_memory.py`** - High-level API providing intuitive methods for memory operations, client-side memory management, and orchestration of database and AI operations
 - **`utils/cosmos_interface.py`** - Low-level Azure Cosmos DB functions for container creation, document CRUD operations, vector search, and query execution
 - **`utils/processing.py`** - AI processing utilities including Azure OpenAI embedding generation, thread summarization, and token counting
-
-
-## Future Improvements
-
-- **Performance Optimizations** - Improve overall speed and responsiveness through optimizations including connection pooling, caching strategies, parallel processing, request batching, and reducing unnecessary API calls. Current operations are too slow and need comprehensive performance improvements.
-
-- **Cloud Compute for Data processing** - Offload orchestration of compute-intensive tasks like summary generation, embedding creation, etc. to serverless compute platforms such as Azure Functions. This would enable background processing, improve responsiveness, reduce client-side resource consumption.
-
-- **Async Operations** - Add asynchronous versions of all I/O-bound operations (database writes, searches, embedding generation) to improve performance and enable concurrent processing of multiple memory operations.
-
-- **Bulk Operations** - Implement bulk calls to Azure OpenAI for batch embedding generation and bulk insert operations to Cosmos DB for improved throughput and reduced latency when processing large volumes of memories or conversation histories.
-
-- **Key-Based Authentication Support** - Add support for connection strings and access keys as an alternative to Entra ID (formerly Azure AD) authentication, providing an easier setup path for PoCs, development environments, and users new to Azure and Cosmos DB.
-
-- **Full-Text Search with FullTextContains** - Enable keyword-based memory retrieval using Azure Cosmos DB's full-text search capabilities to complement semantic search with text matching.
-
-- **Hybrid Search Retrieval** - Combine vector similarity search with full-text keyword search using Reciprocal Rank Fusion (RRF) to improve retrieval accuracy by leveraging both semantic understanding and term scoring.
-
-- **Fact-Based Retrieval** - Query and retrieve specific facts extracted from conversation summaries, enabling granular access to key information without processing entire conversation histories.
-
-- **Fact Search and Indexing** - Implement semantic and keyword search capabilities specifically for facts extracted from summaries, with dedicated indexing to enable fast, targeted retrieval of factual information across all conversations and threads.
-
-- **Memory Importance Scoring** - Implement automatic importance weighting for memories based on factors like recency, interaction frequency, and user-defined priorities to surface the most relevant context for LLM prompts.
-
-- **Cross-Thread Memory Links** - Enable relationship mapping between related conversations across different threads, allowing agents to discover and reference relevant context from past interactions on similar topics.
-
-- **Temporal Memory Decay** - Add configurable time-based relevance scoring that gradually reduces the weight of older memories, simulating natural human memory patterns for more contextually appropriate recall.
-
-- **Memory Compression** - Automatically consolidate and compress related memories into higher-level abstractions over time, reducing storage costs and token usage while preserving essential information.
-
 
 ## License
 
