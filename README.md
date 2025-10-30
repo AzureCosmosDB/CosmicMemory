@@ -8,7 +8,7 @@
 [![YouTube](https://img.shields.io/badge/YouTube-Azure%20Cosmos%20DB-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@AzureCosmosDB)
 
  
-> **⚠️ Important:** This repository is provided as is. No guarantees exist regarding maintenance, bug fixes, continued development, or supportability. However, you're welcome to this code as a starting point or inspiration for your own implementations.
+> **⚠️ Important:** This repository is provided as is. No guarantees exist regarding performance, maintenance, bug fixes, continued development, or supportability. However, you're welcome to this code as a starting point or inspiration for your own implementations.
 
 CosmicMemory is a memory **sample** framework for AI agents that implements a two-tier memory architecture: **short-term memories** for active conversation threads and **long-term memories** for efficient context retrieval.
 
@@ -33,6 +33,7 @@ CosmicMemory/
 │   ├── cosmos_interface.py  # Azure Cosmos DB operations
 │   └── processing.py        # Embedding generation and AI processing
 ├── mem_test.ipynb           # Usage examples and testing
+├── test.py                  # Command-line test application
 └── README.md
 ```
 
@@ -54,6 +55,7 @@ CosmicMemory/
   - [Search and Retrieve Memories](#search-and-retrieve-memories)
   - [Summarize Conversations](#summarize-conversations)
   - [Delete Memories](#delete-memories)
+- [Test Application](#test-application)
 - [Data Models](#data-models)
 - [Usage Guidance](#usage-guidance)
 - [API Reference](#api-reference)
@@ -88,6 +90,21 @@ For memories written to Azure Cosmos DB, take advantage of advanced and semantic
 - **Entra ID Authentication** 🔐 - Secure access using Azure's identity platform
 - **Vector Embeddings** 🔢 - Automatic embedding generation using Azure OpenAI for semantic search capabilities
 
+
+## Test Application
+
+The `test.py` file provides a command-line interface for testing CosmicMemory functionality with an interactive AI chat session. It demonstrates real-world usage patterns including conversation history loading, memory persistence, and agent integration.
+
+**Usage:**
+```bash
+# Run with specific thread and user IDs
+python test.py -t "my-thread-123" -u "user-456"
+
+# Auto-generate IDs if not provided
+python test.py
+```
+
+The test application automatically loads previous conversation summaries, maintains conversation context, and saves new interactions to Azure Cosmos DB when the session ends.
 
 ## Data Models
 
@@ -180,32 +197,14 @@ from cosmic_memory import CosmicMemory
 # Create instance
 memory = CosmicMemory()
 
-# Option 1: Load configuration from .env file or environment variables
+# Load configuration from .env file or environment variables
 memory.load_config()  # Loads from .env in current directory, and automatically connects to Cosmos DB and Azure OpenAI
 # or
 memory.load_config('.env')  # Loads from specific file, and automatically connects to Cosmos DB and Azure OpenAI
-
-# Option 2: Configure Azure resources manually
-memory.subscription_id = "your-subscription-id"
-memory.resource_group_name = "your-resource-group"
-memory.account_name = "your-cosmos-account-name"
-memory.cosmos_db_endpoint = "https://your-account.documents.azure.com:443/"
-memory.cosmos_db_database = "your-database"
-memory.cosmos_db_container = "your-container"
-memory.openai_endpoint = "https://your-openai.openai.azure.com/"
-memory.openai_completions_model = "completions-deployment-name"
-memory.openai_embedding_model = "embedding-deployment-name"
-memory.openai_embedding_dimensions = 512  # desired dimension for embeddings model
-# Enable vector indexing for semantic search
-memory.vector_index = True
-
-# When configuring manually, you must explicitly connect to both services
-memory.connect_to_cosmosdb()
-memory.connect_to_openai()
 ```
 
 **Note on Connection Management:**  
-CosmicMemory uses single reusable client connections for both Cosmos DB and Azure OpenAI that are initialized when you call `load_config()` or the individual `connect_to_*()` methods. These connections are reused across all operations, eliminating redundant authentication overhead and dramatically improving performance.
+CosmicMemory uses single reusable client connections for both Cosmos DB and Azure OpenAI that are initialized when you call `load_config()` or the individual `connect_to_*()` methods. These connections are reused across all operations, eliminating redundant authentication overhead, thus improving performance.
 
 **Environment Variables for `load_config()`:**
 
