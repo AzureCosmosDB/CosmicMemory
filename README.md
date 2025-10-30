@@ -21,8 +21,26 @@ Generate AI-powered summaries and extract key facts from conversation threads an
 
 ![CosmicMemory Architecture](design.png)
 
+## Structure Architecture
+
+CosmicMemory follows a modular architecture with clear separation of concerns:
+
+```
+CosmicMemory/
+├── cosmic_memory.py          # High-level API and memory orchestration
+├── utils/
+│   ├── __init__.py          # Package exports
+│   ├── cosmos_interface.py  # Azure Cosmos DB operations
+│   └── processing.py        # Embedding generation and AI processing
+├── mem_test.ipynb           # Usage examples and testing
+└── README.md
+```
+
+- **`cosmic_memory.py`** - High-level API providing intuitive methods for memory operations, client-side memory management, and orchestration of database and AI operations
+- **`utils/cosmos_interface.py`** - Low-level Azure Cosmos DB functions for container creation, document CRUD operations, vector search, and query execution
+- **`utils/processing.py`** - AI processing utilities including Azure OpenAI embedding generation, thread summarization, and token counting
+
 ## Table of Contents
-- [Overview](#overview)
 - [Core Functionalities](#core-functionalities)
 - [Setup](#setup)
   - [Prerequisites](#prerequisites)
@@ -39,9 +57,6 @@ Generate AI-powered summaries and extract key facts from conversation threads an
 - [Data Models](#data-models)
 - [Usage Guidance](#usage-guidance)
 - [API Reference](#api-reference)
-- [Architecture](#architecture)
-- [Security](#security)
-- [Future Improvements](#future-improvements)
 - [License](#license)
 
 
@@ -644,25 +659,6 @@ Operations that read from or write to persistent storage in Azure Cosmos DB:
 - **`get_summary_db(thread_id, return_details=False)`** - Retrieve a previously generated summary for a conversation thread from Azure Cosmos DB. When return_details=True, includes thread_id, user_id, token_count, and last_updated fields.
 - **`delete_from_db(memory_id)`** - Delete a memory by its document id from Azure Cosmos DB.
 
-
-### Architecture
-
-CosmicMemory follows a modular architecture with clear separation of concerns:
-
-```
-CosmicMemory/
-├── cosmic_memory.py          # High-level API and memory orchestration
-├── utils/
-│   ├── __init__.py          # Package exports
-│   ├── cosmos_interface.py  # Azure Cosmos DB operations
-│   └── processing.py        # Embedding generation and AI processing
-├── mem_test.ipynb           # Usage examples and testing
-└── README.md
-```
-
-- **`cosmic_memory.py`** - High-level API providing intuitive methods for memory operations, client-side memory management, and orchestration of database and AI operations
-- **`utils/cosmos_interface.py`** - Low-level Azure Cosmos DB functions for container creation, document CRUD operations, vector search, and query execution
-- **`utils/processing.py`** - AI processing utilities including Azure OpenAI embedding generation, thread summarization, and token counting
 
 ## License
 
